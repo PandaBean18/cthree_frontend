@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cthree/features/shared/widgets/app_button.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:cthree/core/api/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -93,8 +95,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppButton(
                       text: "Log In",
                       isLoading: _isLoading,
-                      onPressed: () {
-                        // Logic for Rails API login
+                      onPressed: () async {
+                        if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Please enter both email and password")),
+                          );
+                          return;
+                        }
+                        final success = await context.read<AuthProvider>().login(
+                          _emailController.text.trim(),
+                          _passwordController.text,
+                        );
+
+                        if (!success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Login failed. Please check your credentials."),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
                       },
                     ),
 
