@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cthree/features/auth/screens/login_screen.dart';
-import 'package:cthree/features/creator_flow/screens/dashboard.dart';
 import 'package:cthree/core/api/auth_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:cthree/features/creator_flow/screens/creator_main_scaffold.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -31,6 +31,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
-    return auth.isAuthenticated ? const ContentPlannerScreen() : const LoginScreen();
+    return auth.isAuthenticated ? const CreatorMainScaffold() : const LoginScreen();
   }
 }
