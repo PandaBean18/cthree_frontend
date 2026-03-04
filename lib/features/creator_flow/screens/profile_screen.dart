@@ -3,6 +3,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:chart_sparkline/chart_sparkline.dart';
 import 'package:cthree/core/models/profile_model.dart';
 import 'package:cthree/core/api/profile_repository.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cthree/features/creator_flow/progress_arc_painter.dart';
 
 class CreatorProfileScreen extends StatefulWidget {
   const CreatorProfileScreen({super.key});
@@ -15,6 +17,45 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   final ProfileRepository _profileRepo = ProfileRepository();
   ProfileModel? _profile;
   bool _isLoading = true;
+  double _profileUploadProgress = 0.0;
+  bool _isProfileUploading = false;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _handleProfileImageUpload() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 100,
+    );
+    
+    if (image == null) return;
+
+    _profileRepo.updateProfilePicture(image).listen(
+      (progress) {
+        setState(() {
+          _isProfileUploading = true;
+          _profileUploadProgress = progress;
+        });
+
+        if (progress >= 1.0) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            setState(() {
+              _isProfileUploading = false;
+              _profileUploadProgress = 0;
+            });
+            _loadProfile();
+          });
+        }
+      },
+      onError: (e) {
+        setState(() {
+          _isProfileUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Upload failed: $e")),
+        );
+      }
+    );
+  }
 
   @override
   void initState() {
@@ -129,22 +170,84 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     );
   }
 
-  Widget _buildAvatar(String? url) {
-    return Stack(
-      alignment: Alignment.bottomRight,
-      children: [
-        CircleAvatar(
-          radius: 60,
-          backgroundImage: url != null ? NetworkImage(url) : null,
-          child: url == null ? Icon(Icons.person, size: 80, color: Color(0xFF4A2B29)) : null,
-        ),
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: Theme.of(context).primaryColor, shape: BoxShape.circle),
-          child: const Icon(Icons.check, color: Colors.white, size: 16),
+  // Widget _buildAvatar(String? url) {
+  //   return Stack(
+  //     alignment: Alignment.bottomRight,
+  //     children: [
+  //       CircleAvatar(
+  //         radius: 60,
+  //         backgroundImage: url != null ? NetworkImage(url) : null,
+  //         child: url == null ? Icon(Icons.person, size: 80, color: Color(0xFF4A2B29)) : null,
+  //       ),
+  //       Container(
+  //         padding: const EdgeInsets.all(4),
+  //         decoration: BoxDecoration(color: Theme.of(context).primaryColor, shape: BoxShape.circle),
+  //         child: const Icon(Icons.check, color: Colors.white, size: 16),
 
-        )
-      ],
+  //       )
+  //     ],
+  //   );
+  // }
+
+  Widget _buildAvatar(String? url) {
+    return GestureDetector(
+      onTap: _isProfileUploading ? null : _handleProfileImageUpload,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (_isProfileUploading) 
+            SizedBox(
+              height: 130,
+              width: 130,
+              child: CustomPaint(
+                painter: ProgressArcPainter(progress: _profileUploadProgress, color: Theme.of(context).colorScheme.secondary),
+              ),
+            ),
+          
+          CircleAvatar(
+            radius: 60,
+            backgroundColor: Color(0xFFFFD59E),
+            backgroundImage: url != null ? NetworkImage(url) : null,
+            child: url == null && ! _isProfileUploading
+              ? const Icon(Icons.person, size: 80, color: Color(0xFF4A2B29))
+              : null,
+          ),
+
+          if (_isProfileUploading)
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  "${(_profileUploadProgress * 100).toInt()}%",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20
+                  ),
+                ),
+              ),
+            ),
+          
+          // Positioned(
+          //   bottom: 0,
+          //   right: 0,
+          //   child: Container(
+          //     padding: const EdgeInsets.all(4),
+          //     decoration: BoxDecoration(
+          //       color: Theme.of(context).primaryColor, 
+          //       shape: BoxShape.circle,
+          //       border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
+          //     ),
+          //     child: const Icon(Icons.check, color: Colors.white, size: 16),
+          //   ),
+          // ),
+        ],
+      ),
     );
   }
 

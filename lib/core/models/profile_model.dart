@@ -24,7 +24,7 @@ class ProfileModel {
       username: json['user']['username'],
       role: json['user']['role'],
       description: json['user']['description'] ?? '',
-      avatarUrl: json['avatar'],
+      avatarUrl: json['avatar'] != null ? json['avatar']['url'] : null ,
       portfolio: List<String>.from(json['portfolio'] ?? []),
     );
   }
