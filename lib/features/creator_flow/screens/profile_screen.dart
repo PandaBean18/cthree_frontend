@@ -5,6 +5,7 @@ import 'package:cthree/core/models/profile_model.dart';
 import 'package:cthree/core/api/profile_repository.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cthree/features/creator_flow/progress_arc_painter.dart';
+import 'package:cthree/core/app_video_player.dart';
 
 class CreatorProfileScreen extends StatefulWidget {
   const CreatorProfileScreen({super.key});
@@ -17,9 +18,49 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   final ProfileRepository _profileRepo = ProfileRepository();
   ProfileModel? _profile;
   bool _isLoading = true;
+
   double _profileUploadProgress = 0.0;
   bool _isProfileUploading = false;
   final ImagePicker _picker = ImagePicker();
+
+  double _sampleWorkUploadProgress = 0.0;
+  bool _isSampleWorkUploading = false;
+  final ImagePicker _sampleWorkPicker = ImagePicker();
+
+  Future<void> _handleSampleWorkUpload() async {
+    final XFile? media = await _sampleWorkPicker.pickMedia(
+      imageQuality: 80,
+    );
+
+    if (media == null) return;
+
+    _profileRepo.uploadSampleWork(media).listen(
+      (progress) {
+        setState(() {
+          _isSampleWorkUploading = true;
+          _sampleWorkUploadProgress = progress;
+        });
+
+        if (progress >= 1.0) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            setState(() {
+              _isSampleWorkUploading = false;
+              _sampleWorkUploadProgress = 0;
+            });
+            _loadProfile();
+          });
+        }
+      },
+      onError: (e) {
+        setState(() {
+          _isSampleWorkUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Upload failed: $e")),
+        );
+      }
+    );
+  }
 
   Future<void> _handleProfileImageUpload() async {
     final XFile? image = await _picker.pickImage(
@@ -163,6 +204,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                 ]),
               ),
             ),
+            SliverToBoxAdapter(child: _buildSampleWorkSection()),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
@@ -170,24 +212,111 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     );
   }
 
-  // Widget _buildAvatar(String? url) {
-  //   return Stack(
-  //     alignment: Alignment.bottomRight,
-  //     children: [
-  //       CircleAvatar(
-  //         radius: 60,
-  //         backgroundImage: url != null ? NetworkImage(url) : null,
-  //         child: url == null ? Icon(Icons.person, size: 80, color: Color(0xFF4A2B29)) : null,
-  //       ),
-  //       Container(
-  //         padding: const EdgeInsets.all(4),
-  //         decoration: BoxDecoration(color: Theme.of(context).primaryColor, shape: BoxShape.circle),
-  //         child: const Icon(Icons.check, color: Colors.white, size: 16),
+  Widget _buildSampleWorkSection() {
+    final portfolio = _profile?.portfolio ?? [];
 
-  //       )
-  //     ],
-  //   );
-  // }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Text(
+            'SAMPLE WORK', 
+            style: TextStyle(color: Color(0xFF6F7685), fontWeight: FontWeight.bold),
+          ),
+        ),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 24),
+            itemCount: portfolio.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return _buildAddMediaButton();
+              }
+
+              final item = portfolio[index-1];
+              return _buildMediaThumbnail(item);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddMediaButton() {
+    return GestureDetector(
+      onTap: _isSampleWorkUploading ? null : _handleSampleWorkUpload,
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: 16, bottom: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.3), width: 1),
+        ),
+        child: Center(
+          child: _isSampleWorkUploading 
+            ? CircularProgressIndicator(
+              value: _sampleWorkUploadProgress,
+              color: Theme.of(context).colorScheme.secondary,
+            )
+            : Icon(Icons.add_rounded, color: Theme.of(context).primaryColor, size: 40),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaThumbnail(PortfolioItem item) {
+    return GestureDetector(
+      onTap: () => _showExpandedMedia(item.url, item.mediaType),
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(left: 16, bottom: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          image: DecorationImage(
+            image: NetworkImage(item.thumbnailUrl),
+            fit: BoxFit.cover
+          ),
+        ),
+        child: Stack(
+          children: [
+            if (item.mediaType == 'video')
+              const Center(child: Icon(Icons.play_circle_outline, color: Colors.white, size: 32)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showExpandedMedia(String url, String mediaType) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            Center(
+              child: mediaType == 'image' 
+              ? InteractiveViewer(
+                child: Image.network(url, fit: BoxFit.contain),
+              )
+              : AppVideoPlayer(url: url),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.pop(context),
+            )
+          ],
+        ),
+      )
+    );
+  }
 
   Widget _buildAvatar(String? url) {
     return GestureDetector(
