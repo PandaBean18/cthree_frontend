@@ -20,6 +20,7 @@ class CampaignParticipant {
 }
 
 class DeliverableModel {
+  String id;
   CampaignParticipant campaignParticipant;
   DateTime createdAt;
   String deliverableType;
@@ -28,6 +29,7 @@ class DeliverableModel {
   String? submissionProofUrl;
 
   DeliverableModel({
+    required this.id,
     required this.campaignParticipant, 
     required this.createdAt, 
     required this.deliverableType, 
@@ -38,6 +40,7 @@ class DeliverableModel {
 
   factory DeliverableModel.fromJson(Map<String, dynamic> json) {
     return DeliverableModel(
+      id: json['id'],
       campaignParticipant: CampaignParticipant.fromJson(json['campaign_participant']), 
       createdAt: json['created_at'], 
       deliverableType: json['deliverable_type'], 
