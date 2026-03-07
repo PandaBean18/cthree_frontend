@@ -3,7 +3,6 @@ import 'package:cthree/core/models/profile_model.dart';
 import 'package:cthree/core/api/dio_client.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
-import 'package:path/path.dart';
 import 'package:mime/mime.dart';
 
 class ProfileRepository {
