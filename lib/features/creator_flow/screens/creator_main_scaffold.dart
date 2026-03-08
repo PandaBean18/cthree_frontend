@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cthree/features/creator_flow/screens/dashboard.dart';
 import 'package:cthree/features/creator_flow/screens/profile_screen.dart';
+import 'package:cthree/features/creator_flow/screens/deliverables_screen.dart';
 
 class CreatorMainScaffold extends StatefulWidget {
   const CreatorMainScaffold({super.key});
@@ -14,7 +15,8 @@ class _CreatorMainScaffold extends State<CreatorMainScaffold> {
 
   final List<Widget> _screens = [
     const ContentPlannerScreen(),
-    const CreatorProfileScreen()
+    const DeliverablesScreen(),
+    const CreatorProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -47,6 +49,10 @@ class _CreatorMainScaffold extends State<CreatorMainScaffold> {
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_rounded),
               label: 'Dashboard',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.assignment_turned_in_rounded),
+              label: 'Deliverables',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_rounded),

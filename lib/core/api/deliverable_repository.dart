@@ -9,18 +9,26 @@ class DeliverableRepository {
   final Dio _dio = DioClient().dio;
   final Dio _cloudinaryDio = Dio();
 
-  Future<DeliverableModel?> getDeliverables() async {
+  Future<List<DeliverableModel>?> getDeliverables() async {
     try { 
       final response = await _dio.get(
         '/users/deliverables'
       );
 
       if (response.statusCode == 200) {
-        return DeliverableModel.fromJson(response.data);
+        List<Map<String, dynamic>> data = (response.data as List)
+                                          .map((item) => item as Map<String, dynamic>)
+                                          .toList();
+        List<DeliverableModel> a = [];
+        for (Map<String, dynamic> d in data) {
+          a.add(DeliverableModel.fromJson(d));
+        }
+        print(a);
+        return a;
       }
-
       return null;
     } catch (e) {
+      print(e);
       return null;
     }
   }

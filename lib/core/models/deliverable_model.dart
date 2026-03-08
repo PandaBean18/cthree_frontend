@@ -1,11 +1,12 @@
 class Campaign {
   String id;
   String title;
+  String brief;
 
-  Campaign({required this.id, required this.title});
+  Campaign({required this.id, required this.title, required this.brief});
 
   factory Campaign.fromJson(Map<String, dynamic> json) {
-    return Campaign(id: json['id'], title: json['title']);
+    return Campaign(id: json['id'], title: json['title'], brief: json['brief']);
   }
 }
 
@@ -42,7 +43,7 @@ class DeliverableModel {
     return DeliverableModel(
       id: json['id'],
       campaignParticipant: CampaignParticipant.fromJson(json['campaign_participant']), 
-      createdAt: json['created_at'], 
+      createdAt: DateTime.parse(json['created_at']), 
       deliverableType: json['deliverable_type'], 
       status: json['status'],
       feedback: json['feedback'],
