@@ -3,11 +3,12 @@ import 'package:provider/provider.dart';
 import './core/theme/app_theme.dart';
 import 'package:cthree/features/auth/widgets/auth_wrapper.dart';
 import 'package:cthree/core/api/auth_provider.dart';
+import 'package:cthree/core/api/deliverable_provider.dart';
 void main() {
   runApp(
     MultiProvider(providers: [
       ChangeNotifierProvider(create: (_) => AuthProvider()),
-      
+      ChangeNotifierProvider(create: (_) => DeliverableProvider()),
     ],
     child: const MyApp()
     )

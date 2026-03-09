@@ -53,6 +53,7 @@ class DeliverableModel {
       feedback: json['feedback'],
       submissionProofUrl: json['submission_proof_url'],
       dueDate: DateTime.parse(json['due_date']),
+      brief: json['brief']
     );
   }
 }

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cthree/core/api/deliverable_repository.dart';
 import 'package:cthree/core/models/deliverable_model.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cthree/core/api/deliverable_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:cthree/features/creator_flow/screens/individual_deliverable_screen.dart';
 
 
 class DeliverablesScreen extends StatefulWidget {
@@ -12,28 +15,23 @@ class DeliverablesScreen extends StatefulWidget {
 }
 
 class _DeliverableScreenState extends State<DeliverablesScreen> {
-  final DeliverableRepository _repo = DeliverableRepository();
-  List<DeliverableModel>? _deliverables;
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _fetchDeliverables();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DeliverableProvider>().fetchAll();
+    });
   }
 
-  Future<void> _fetchDeliverables() async {
-    final data = await _repo.getDeliverables();
-    if (mounted) {
-      setState(() {
-        _deliverables = data;
-        _isLoading = false;
-      });
-    }
+  Future<void> _handleRefresh() async {
+    await context.read<DeliverableProvider>().fetchAll();
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<DeliverableProvider>();
+    final _deliverables = provider.allDeliverables;
+    final _isLoading = provider.isLoading;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -47,13 +45,13 @@ class _DeliverableScreenState extends State<DeliverablesScreen> {
       body: _isLoading
       ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.secondary,),)
       : RefreshIndicator(
-        onRefresh: _fetchDeliverables,
+        onRefresh: _handleRefresh,
         child: _deliverables == null || _deliverables!.isEmpty
         ? _buildEmptyState()
         : ListView.builder(
           padding: EdgeInsets.all(20),
           itemCount: _deliverables!.length,
-          itemBuilder: (context, index) => _buildDeliverableCard(_deliverables![index]),
+          itemBuilder: (context, index) => _buildDeliverableCard(_deliverables[index]!),
         ),
       ),
     );
@@ -87,7 +85,7 @@ class _DeliverableScreenState extends State<DeliverablesScreen> {
 
     return GestureDetector(
       onTap: () {
-        print('Tapped Deliverable: ${deliverable.id}');
+        Navigator.push(context, MaterialPageRoute(builder: (context) => IndividualDeliverableScreen(deliverableId: deliverable.id)));
       },
       child: Container(
         margin: EdgeInsets.only(bottom: 16),

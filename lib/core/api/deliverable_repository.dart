@@ -8,6 +8,7 @@ import 'package:mime/mime.dart';
 class DeliverableRepository {
   final Dio _dio = DioClient().dio;
   final Dio _cloudinaryDio = Dio();
+  final Map<String, DeliverableModel> _deliverablesMap = {};
 
   Future<List<DeliverableModel>?> getDeliverables() async {
     try { 
@@ -21,14 +22,14 @@ class DeliverableRepository {
                                           .toList();
         List<DeliverableModel> a = [];
         for (Map<String, dynamic> d in data) {
-          a.add(DeliverableModel.fromJson(d));
+          DeliverableModel v = DeliverableModel.fromJson(d);
+          a.add(v);
+          _deliverablesMap[v.id] = v;
         }
-        print(a);
         return a;
       }
       return null;
     } catch (e) {
-      print(e);
       return null;
     }
   }
@@ -103,5 +104,30 @@ class DeliverableRepository {
 
     startUpload();
     return controller.stream;
+  }
+
+  Future<DeliverableModel?> fetchIndvDeliverable(String id) async {
+    try {
+      final response = await _dio.get('/deliverables/$id');
+       
+      if (response.statusCode == 200) {
+        return DeliverableModel.fromJson(response.data);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<DeliverableModel?> getIndvDeliverable(String id) async {
+    DeliverableModel? deliverable = _deliverablesMap['id'];
+
+    if (deliverable == null) {
+      deliverable = await fetchIndvDeliverable(id);
+      return deliverable;
+    } else {
+      return deliverable;
+    }
   }
 }
