@@ -28,6 +28,8 @@ class DeliverableModel {
   String? feedback;
   String status;
   String? submissionProofUrl;
+  DateTime dueDate;
+  String? brief;
 
   DeliverableModel({
     required this.id,
@@ -36,7 +38,9 @@ class DeliverableModel {
     required this.deliverableType, 
     this.feedback, 
     required this.status, 
-    this.submissionProofUrl
+    this.submissionProofUrl,
+    required this.dueDate,
+    this.brief
   });
 
   factory DeliverableModel.fromJson(Map<String, dynamic> json) {
@@ -47,7 +51,8 @@ class DeliverableModel {
       deliverableType: json['deliverable_type'], 
       status: json['status'],
       feedback: json['feedback'],
-      submissionProofUrl: json['submission_proof_url']
+      submissionProofUrl: json['submission_proof_url'],
+      dueDate: DateTime.parse(json['due_date']),
     );
   }
 }

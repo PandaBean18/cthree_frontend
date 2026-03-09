@@ -42,7 +42,7 @@ class _DeliverableScreenState extends State<DeliverablesScreen> {
         title: const Text(
           'Your Deliverables',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        )
       ),
       body: _isLoading
       ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.secondary,),)
@@ -66,8 +66,24 @@ class _DeliverableScreenState extends State<DeliverablesScreen> {
     );
   }
 
+  String _getDueTimerString(DateTime dueDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final difference = dateOnly.difference(today).inDays;
+
+    if (difference == 0) return "Due Today";
+    if (difference == 1) return "Due Tomorrow";
+    if (difference == -1) return "Overdue";
+
+    final months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    return "Due ${dueDate.day} ${months[dueDate.month - 1]}";
+  }
+
   Widget _buildDeliverableCard(DeliverableModel deliverable) {
     final statusColor = _getStatusColor(deliverable.status);
+    final dueString = _getDueTimerString(deliverable.dueDate);
+    final isUrgent = dueString == "Due Today" || dueString == "Overdue";
 
     return GestureDetector(
       onTap: () {
@@ -79,34 +95,54 @@ class _DeliverableScreenState extends State<DeliverablesScreen> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05))
+          border: Border.all(
+            color: isUrgent ? Colors.redAccent.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05),
+            width: 1
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            RichText(
-              text: TextSpan(
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                children: [
-                  TextSpan(
-                    text: '${deliverable.deliverableType[0].toUpperCase() + deliverable.deliverableType.substring(1)} for ',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: GoogleFonts.robotoMono().fontFamily
-                    )
-                  ),
-                  TextSpan(
-                    text: deliverable.campaignParticipant.campaign.title,
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontFamily: GoogleFonts.robotoMono().fontFamily,
-                      fontStyle: FontStyle.italic
-                    )
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      children: [
+                        TextSpan(
+                          text: '${deliverable.deliverableType[0].toUpperCase() + deliverable.deliverableType.substring(1)} for ',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontFamily: GoogleFonts.robotoMono().fontFamily
+                          )
+                        ),
+                        TextSpan(
+                          text: deliverable.campaignParticipant.campaign.title,
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontFamily: GoogleFonts.robotoMono().fontFamily,
+                            fontStyle: FontStyle.italic
+                          )
+                        )
+                      ]
+                    ),
                   )
-                ]
-              ),
+                ),
+                const SizedBox(width: 8),
+
+                Text(
+                  dueString,
+                  style: TextStyle(
+                    color: isUrgent ? Colors.redAccent : const Color(0xFF6F7685),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold
+                  ),
+                ),
+              ]
             ),
-            SizedBox(height: 12,),
+            SizedBox(height: 16,),
 
             Row(
               children: [
