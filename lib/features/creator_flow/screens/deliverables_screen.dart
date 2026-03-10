@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cthree/core/api/deliverable_repository.dart';
 import 'package:cthree/core/models/deliverable_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cthree/core/api/deliverable_provider.dart';
