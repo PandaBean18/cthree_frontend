@@ -1,3 +1,16 @@
+class SubmissionProof {
+  String id;
+  String url;
+  String thumbnailUrl;
+  String mediaType;
+
+  SubmissionProof({required this.id, required this.url, required this.thumbnailUrl, required this.mediaType});
+
+  factory SubmissionProof.fromJson(Map<String, dynamic> json) {
+    return SubmissionProof(id: json['id'], url: json['url'], thumbnailUrl: json['thumbnail_url'], mediaType: json['media_type']);
+  }
+}
+
 class Campaign {
   String id;
   String title;
@@ -27,9 +40,10 @@ class DeliverableModel {
   String deliverableType;
   String? feedback;
   String status;
-  String? submissionProofUrl;
+  String? submissionProofId;
   DateTime dueDate;
   String? brief;
+  SubmissionProof? submissionProof;
 
   DeliverableModel({
     required this.id,
@@ -38,9 +52,10 @@ class DeliverableModel {
     required this.deliverableType, 
     this.feedback, 
     required this.status, 
-    this.submissionProofUrl,
+    this.submissionProofId,
     required this.dueDate,
-    this.brief
+    this.brief,
+    this.submissionProof
   });
 
   factory DeliverableModel.fromJson(Map<String, dynamic> json) {
@@ -51,9 +66,10 @@ class DeliverableModel {
       deliverableType: json['deliverable_type'], 
       status: json['status'],
       feedback: json['feedback'],
-      submissionProofUrl: json['submission_proof_url'],
+      submissionProofId: json['submission_proof_id'],
       dueDate: DateTime.parse(json['due_date']),
-      brief: json['brief']
+      brief: json['brief'],
+      submissionProof: json['submission_proof'] == null ? null : SubmissionProof.fromJson(json['submission_proof'])
     );
   }
 }

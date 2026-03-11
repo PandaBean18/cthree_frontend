@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cthree/core/api/deliverable_provider.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'package:cthree/core/app_video_player.dart';
 
 class IndividualDeliverableScreen extends StatefulWidget {
   final String deliverableId;
 
 
-  IndividualDeliverableScreen({super.key, required this.deliverableId});
+  const IndividualDeliverableScreen({super.key, required this.deliverableId});
 
   @override  
   State<IndividualDeliverableScreen> createState() => _IndividualDeliverableScreenState();
@@ -109,15 +110,69 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
               ),
 
             const SizedBox(height: 40,),
-            if (_deliverable.submissionProofUrl != null) ...[
+            if (_deliverable.submissionProofId != null) ...[
               const Text('Last Submission', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
               const SizedBox(height: 16,),
-              _buildMediaPreview(_deliverable.submissionProofUrl!)
+              _buildMediaThumbnail(
+                url: _deliverable.submissionProof!.url, 
+                thumbnailUrl: _deliverable.submissionProof!.thumbnailUrl, 
+                mediaType: _deliverable.submissionProof!.mediaType)
             ],
             const SizedBox(height: 100,)
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMediaThumbnail({required String url, required String thumbnailUrl, required String mediaType}) {
+    return GestureDetector(
+      onTap: () => _showExpandedMedia(url, mediaType),
+      child: Container(
+        width: 200,
+        height: 400,
+        margin: const EdgeInsets.only(left: 16, bottom: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          image: DecorationImage(
+            image: NetworkImage(thumbnailUrl),
+            fit: BoxFit.cover
+          ),
+        ),
+        child: Stack(
+          children: [
+            if (mediaType == 'video')
+              const Center(child: Icon(Icons.play_circle_outline, color: Colors.white, size: 32)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showExpandedMedia(String url, String mediaType) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            Center(
+              child: mediaType == 'image' 
+              ? InteractiveViewer(
+                child: Image.network(url, fit: BoxFit.contain),
+              )
+              : AppVideoPlayer(url: url),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.pop(context),
+            )
+          ],
+        ),
+      )
     );
   }
 
@@ -178,12 +233,5 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
       )
     );
 
-  }
-
-  Widget _buildMediaPreview(String url) {
-    return Container(
-      height: 200, width: double.infinity,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)),
-    );
   }
 }

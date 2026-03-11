@@ -89,7 +89,7 @@ class DeliverableRepository {
           await _dio.patch(
             "/deliverables/$deliverableId/submit",
             data: {
-              "submission_proof_url": confirmUploadResponse.data['url']
+              "submission_proof_id": confirmUploadResponse.data['id']
             }
           );
 
