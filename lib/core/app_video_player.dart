@@ -17,7 +17,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
     super.initState();
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
       ..initialize().then((_) {
-        setState(() {}); // Ensure the first frame is shown after init
+        setState(() {});
         _controller.play();
         _controller.setLooping(true);
       });
@@ -25,7 +25,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
 
   @override
   void dispose() {
-    _controller.dispose(); // CRITICAL: Prevent memory leaks on your i3 laptop
+    _controller.dispose(); 
     super.dispose();
   }
 

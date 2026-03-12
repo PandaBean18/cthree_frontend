@@ -1,8 +1,11 @@
+import 'package:cthree/core/api/deliverable_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:cthree/core/api/deliverable_provider.dart';
 import 'package:flutter/rendering.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:cthree/core/app_video_player.dart';
+import 'package:cthree/features/creator_flow/button_progress_painter.dart';
 
 class IndividualDeliverableScreen extends StatefulWidget {
   final String deliverableId;
@@ -15,6 +18,10 @@ class IndividualDeliverableScreen extends StatefulWidget {
 }
 
 class _IndividualDeliverableScreenState extends State<IndividualDeliverableScreen> {
+  double _proofUploadProgress = 0.0;
+  bool _isProofUploading = false;
+  final ImagePicker _picker = ImagePicker();
+  final _repo = DeliverableRepository();
   
   @override
   void initState() {
@@ -51,47 +58,77 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
             const SizedBox(height: 12,),
 
             if (_deliverable.brief != null) 
-              Text(_deliverable.brief!, style: TextStyle(color: Color(0xFF6F7685), fontSize: 14),),
+              Text(_deliverable.brief!, style: TextStyle(color: Color(0xFF6F7685), fontSize: 12),),
             if (_deliverable.brief != null)
               const SizedBox(height: 24,),
 
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.surface),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(_deliverable.deliverableType.toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-              )
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Theme.of(context).colorScheme.surface),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(_deliverable.deliverableType.toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  )
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => {print('lmao')},
+                  icon: Icon(Icons.calendar_today_rounded, size: 16,),
+                  label: Text(
+                    "Add To Calendar",
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: Colors.transparent,
+                    side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ]
             ),
 
-            const SizedBox(height: 40,),
+            const SizedBox(height: 24,),
             const Text("Timeline", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),),
             const SizedBox(height: 24,),
 
-            _buildTimelineStep(title: "Deliverable Accepted", subtitle: "Initial contract confirmed", isCompleted: true),
+            _buildTimelineStep(title: "Deliverable Accepted", subtitle: "Initial contract confirmed", isCompleted: true, status: _deliverable.status),
             _buildTimelineStep(
               title: "Content Draft",
               subtitle: _deliverable.status.toUpperCase(),
               isCurrent: !isApproved,
               isCompleted: isApproved,
-              feedback: _deliverable.feedback
+              feedback: _deliverable.feedback,
+              status: _deliverable.status
             ),
-            _buildTimelineStep(title: 'Final Post', subtitle: 'Post on social(s)', isCurrent: isApproved, isCompleted: false, isLast: true),
-            const SizedBox(height: 32),
+            _buildTimelineStep(title: 'Final Post', subtitle: 'Post on social(s)', isCurrent: isApproved, isCompleted: false, isLast: true, status: _deliverable.status),
+            
+            if (_deliverable.status != 'submitted')
+              const SizedBox(height: 32),
 
-            if (!isApproved)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => {print('submit proof')} , 
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            if (!isApproved && _deliverable.status != 'submitted')
+              CustomPaint(
+                painter: _isProofUploading 
+                ? ButtonProgressPainter(progress: _proofUploadProgress, color: Theme.of(context).colorScheme.secondary)
+                : null,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _handleProofUpload, 
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Submit Draft', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
                   ),
-                  child: const Text('Submit Draft', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
                 ),
               ),
 
@@ -122,6 +159,41 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _handleProofUpload() async {
+    final XFile? file = await _picker.pickMedia();
+    if (file == null) return;
+
+    setState(() {
+      _isProofUploading = true;
+      _proofUploadProgress = 0.0;
+    });
+
+    _repo.submitProof(file, widget.deliverableId).listen(
+      (progress) {
+        setState(() {
+          _proofUploadProgress = progress;
+        });
+
+        if (progress >= 1.0) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              setState(() {
+                _isProofUploading = false;
+                context.read<DeliverableProvider>().fetchOne(widget.deliverableId, deliverableUpdated: true);
+              });
+            }
+          });
+        }
+      }, 
+      onError: (e) {
+        setState(() => _isProofUploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Upload failed: $e")),
+        );
+      }
     );
   }
 
@@ -176,7 +248,7 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
     );
   }
 
-  Widget _buildTimelineStep({required String title, required String subtitle,  bool isCompleted = false, bool isCurrent = false, bool isLast = false, String? feedback}) {
+  Widget _buildTimelineStep({required String title, required String subtitle,  bool isCompleted = false, bool isCurrent = false, bool isLast = false, required String status, String? feedback}) {
     return IntrinsicHeight(
       child: Row(
         children: [
@@ -202,7 +274,7 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
               children: [
                 Text(title, style: TextStyle(color: isCurrent || isCompleted ? Colors.white : const Color(0xFF6F7685), fontWeight: FontWeight.bold),),
                 Text(subtitle, style: const TextStyle(color: Color(0xFF6F7685), fontSize: 12),),
-                if (feedback != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(feedback, style: const TextStyle(color: Colors.redAccent, fontSize: 12))),
+                if (feedback != null && status == 'rejected') Padding(padding: const EdgeInsets.only(top: 4), child: Text(feedback, style: const TextStyle(color: Colors.redAccent, fontSize: 12))),
                 const SizedBox(height: 24),
               ],
             )

@@ -89,7 +89,7 @@ class DeliverableRepository {
           await _dio.patch(
             "/deliverables/$deliverableId/submit",
             data: {
-              "submission_proof_id": confirmUploadResponse.data['id']
+              "submission_proof_id": confirmUploadResponse.data['item']['id']
             }
           );
 
@@ -106,7 +106,7 @@ class DeliverableRepository {
     return controller.stream;
   }
 
-  Future<DeliverableModel?> fetchIndvDeliverable(String id) async {
+  Future<DeliverableModel?> fetchIndvDeliverable(String id)async {
     try {
       final response = await _dio.get('/deliverables/$id');
        
@@ -120,10 +120,10 @@ class DeliverableRepository {
     }
   }
 
-  Future<DeliverableModel?> getIndvDeliverable(String id) async {
+  Future<DeliverableModel?> getIndvDeliverable(String id, bool deliverableUpdated) async {
     DeliverableModel? deliverable = _deliverablesMap['id'];
 
-    if (deliverable == null) {
+    if (deliverable == null || deliverableUpdated) {
       deliverable = await fetchIndvDeliverable(id);
       return deliverable;
     } else {

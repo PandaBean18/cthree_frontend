@@ -27,8 +27,8 @@ class DeliverableProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchOne(String id) async {
-    final result = await _repo.getIndvDeliverable(id);
+  Future<void> fetchOne(String id, {bool deliverableUpdated = false}) async {
+    final result = await _repo.getIndvDeliverable(id, deliverableUpdated);
 
     if (result != null) {
       _deliverables[id] = result;
