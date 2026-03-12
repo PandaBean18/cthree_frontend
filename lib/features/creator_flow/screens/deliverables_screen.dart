@@ -71,7 +71,7 @@ class _DeliverableScreenState extends State<DeliverablesScreen> {
 
     if (difference == 0) return "Due Today";
     if (difference == 1) return "Due Tomorrow";
-    if (difference == -1) return "Overdue";
+    if (difference < 0) return "Overdue";
 
     final months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     return "Due ${dueDate.day} ${months[dueDate.month - 1]}";

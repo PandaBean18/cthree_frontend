@@ -1,4 +1,5 @@
 import 'package:cthree/core/api/deliverable_repository.dart';
+import 'package:cthree/core/models/deliverable_model.dart';
 import 'package:flutter/material.dart';
 import 'package:cthree/core/api/deliverable_provider.dart';
 import 'package:flutter/rendering.dart';
@@ -76,7 +77,7 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
                   )
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => {print('lmao')},
+                  onPressed: () => {_showCalendarPicker(context, _deliverable)},
                   icon: Icon(Icons.calendar_today_rounded, size: 16,),
                   label: Text(
                     "Add To Calendar",
@@ -95,8 +96,34 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
               ]
             ),
 
-            const SizedBox(height: 24,),
-            const Text("Timeline", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),),
+            const SizedBox(height: 40,),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Timeline", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5),
+                      width: 1
+                    )
+                  ),
+                  child: Text(
+                    _getDaysLeftString(_deliverable.dueDate),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.secondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
             const SizedBox(height: 24,),
 
             _buildTimelineStep(title: "Deliverable Accepted", subtitle: "Initial contract confirmed", isCompleted: true, status: _deliverable.status),
@@ -159,6 +186,112 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
           ],
         ),
       ),
+    );
+  }
+
+  String _getDaysLeftString(DateTime dueDate) {
+    final now = DateTime.now();
+    final difference = dueDate.difference(now).inDays;
+
+    if (difference < 0) return "Overdue";
+    if (difference == 0) return "Due Today";
+    if (difference == 1) return "1 Day Left";
+
+    return "${difference} Days Left";
+
+  }
+
+  void _showCalendarPicker(BuildContext context, DeliverableModel deliverable) {
+    DateTime selectedDate = DateTime.now().isBefore(deliverable.dueDate)
+      ? DateTime.now()
+      : deliverable.dueDate; 
+    bool _isAddingToCalendar = false;
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadiusGeometry.circular(20)),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [    
+                        Text(
+                          "Save Task",
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, color: Color(0xFF6F7685)),
+                          onPressed: () => Navigator.pop(context),
+                        )
+                      ]
+                    ),
+                    Divider(color: Theme.of(context).colorScheme.surface),
+
+                    SizedBox(
+                      height: 300,
+                      width: 300,
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: ColorScheme.dark(
+                            primary: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.3),
+                            onPrimary: Theme.of(context).colorScheme.secondary,
+                            surface: Theme.of(context).scaffoldBackgroundColor,
+                            onSurface: Colors.white
+                          )
+                        ),
+                        child: CalendarDatePicker(
+                          initialDate: selectedDate,
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: deliverable.dueDate,
+                          onDateChanged: (date) {
+                            setDialogState(() => selectedDate = date);
+                          },
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16,),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          print("implement add to calendar");
+                          setDialogState(() {
+                            _isAddingToCalendar = true;
+                          });
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            setDialogState(() {
+                              _isAddingToCalendar = false;
+                            });
+                            Navigator.pop(context);
+                          });
+                        },
+                        child: _isAddingToCalendar 
+                        ? CircularProgressIndicator(color: Colors.white, constraints: BoxConstraints(minHeight: 20, minWidth: 20),)
+                        : Text("Add To Calendar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      }
     );
   }
 
