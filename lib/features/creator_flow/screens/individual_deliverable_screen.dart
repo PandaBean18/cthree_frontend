@@ -1,4 +1,6 @@
+import 'package:cthree/core/api/calendar_repository.dart';
 import 'package:cthree/core/api/deliverable_repository.dart';
+import 'package:cthree/core/models/calendar_entry_model.dart';
 import 'package:cthree/core/models/deliverable_model.dart';
 import 'package:flutter/material.dart';
 import 'package:cthree/core/api/deliverable_provider.dart';
@@ -23,6 +25,7 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
   bool _isProofUploading = false;
   final ImagePicker _picker = ImagePicker();
   final _repo = DeliverableRepository();
+  DateTime? _scheduledDate;
   
   @override
   void initState() {
@@ -35,7 +38,6 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
   @override
   Widget build(BuildContext context) {
     final _deliverable = context.watch<DeliverableProvider>().deliverables[widget.deliverableId];
-
     if (_deliverable == null) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -77,10 +79,18 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
                   )
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => {_showCalendarPicker(context, _deliverable)},
-                  icon: Icon(Icons.calendar_today_rounded, size: 16,),
+                  onPressed: () async {
+                    final DateTime? result = await _showCalendarPicker(context, _deliverable);
+
+                    if (result != null) {
+                      setState(() {
+                        _scheduledDate = result;
+                      });
+                    }
+                  },
+                  icon: Icon(_scheduledDate != null ? Icons.event_available : Icons.calendar_today_rounded, size: 16,),
                   label: Text(
-                    "Add To Calendar",
+                    _scheduledDate != null ? "${_scheduledDate!.day} ${_getMonthName(_scheduledDate!.month)}" : "Add To Calendar",
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                   style: OutlinedButton.styleFrom(
@@ -189,6 +199,11 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
     );
   }
 
+  String _getMonthName(int month) {
+    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    return months[month - 1];
+  }
+
   String _getDaysLeftString(DateTime dueDate) {
     final now = DateTime.now();
     final difference = dueDate.difference(now).inDays;
@@ -201,13 +216,13 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
 
   }
 
-  void _showCalendarPicker(BuildContext context, DeliverableModel deliverable) {
+  Future<DateTime?> _showCalendarPicker(BuildContext context, DeliverableModel deliverable) {
     DateTime selectedDate = DateTime.now().isBefore(deliverable.dueDate)
       ? DateTime.now()
       : deliverable.dueDate; 
     bool _isAddingToCalendar = false;
     
-    showDialog(
+    return showDialog<DateTime>(
       context: context,
       builder: (context) {
         return StatefulBuilder(
@@ -229,7 +244,9 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
                         ),
                         IconButton(
                           icon: Icon(Icons.close, color: Color(0xFF6F7685)),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
                         )
                       ]
                     ),
@@ -268,17 +285,29 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        onPressed: () {
-                          print("implement add to calendar");
+                        onPressed: () async {
                           setDialogState(() {
                             _isAddingToCalendar = true;
                           });
-                          Future.delayed(const Duration(milliseconds: 500), () {
+                          
+                          final res = await _confirmAddToCalendar(deliverable, selectedDate);
+
+                          if (res == true) {
                             setDialogState(() {
                               _isAddingToCalendar = false;
                             });
-                            Navigator.pop(context);
-                          });
+                            Navigator.pop(context, selectedDate);
+                          } else {
+                            setDialogState(() {
+                              _isAddingToCalendar = false;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Something went wrong"),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
                         },
                         child: _isAddingToCalendar 
                         ? CircularProgressIndicator(color: Colors.white, constraints: BoxConstraints(minHeight: 20, minWidth: 20),)
@@ -293,6 +322,12 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
         );
       }
     );
+  }
+
+  Future<bool> _confirmAddToCalendar(DeliverableModel deliverable, DateTime dueDate) async {
+    final calendarEntryModel = CalendarEntryModel(date: dueDate, entryType: deliverable.deliverableType, isCompleted: false, deliverableId: deliverable.id);
+    final result = await CalendarRepository().createDeliverableEntry(calendarEntryModel);
+    return result;
   }
 
   Future<void> _handleProofUpload() async {
