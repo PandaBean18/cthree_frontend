@@ -79,7 +79,8 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
                   )
                 ),
                 OutlinedButton.icon(
-                  onPressed: () async {
+                  onPressed:(_scheduledDate == null && _deliverable.calendarEntry == null) 
+                  ? () async {
                     final DateTime? result = await _showCalendarPicker(context, _deliverable);
 
                     if (result != null) {
@@ -87,11 +88,12 @@ class _IndividualDeliverableScreenState extends State<IndividualDeliverableScree
                         _scheduledDate = result;
                       });
                     }
-                  },
-                  icon: Icon(_scheduledDate != null ? Icons.event_available : Icons.calendar_today_rounded, size: 16,),
+                  }
+                  : null,
+                  icon: Icon((_scheduledDate != null && _deliverable.calendarEntry == null) ? Icons.event_available : Icons.calendar_today_rounded, size: 16, color: Theme.of(context).primaryColor,),
                   label: Text(
-                    _scheduledDate != null ? "${_scheduledDate!.day} ${_getMonthName(_scheduledDate!.month)}" : "Add To Calendar",
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    (_scheduledDate != null || _deliverable.calendarEntry != null) ? ((_scheduledDate != null) ? "${_scheduledDate!.day} ${_getMonthName(_scheduledDate!.month)}" : "${_deliverable.calendarEntry!.date.day} ${_getMonthName(_deliverable.calendarEntry!.date.month)}") : "Add To Calendar",
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Theme.of(context).colorScheme.primary,

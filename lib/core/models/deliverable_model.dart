@@ -1,3 +1,14 @@
+class CalendarEntry {
+  String id;
+  DateTime date;
+
+  CalendarEntry({required this.id, required this.date});
+
+  factory CalendarEntry.fromJson(Map<String, dynamic> json) {
+    return CalendarEntry(id: json['id'], date: DateTime.parse(json['date']));
+  }
+}
+
 class SubmissionProof {
   String id;
   String url;
@@ -44,6 +55,7 @@ class DeliverableModel {
   DateTime dueDate;
   String? brief;
   SubmissionProof? submissionProof;
+  CalendarEntry? calendarEntry;
 
   DeliverableModel({
     required this.id,
@@ -55,7 +67,8 @@ class DeliverableModel {
     this.submissionProofId,
     required this.dueDate,
     this.brief,
-    this.submissionProof
+    this.submissionProof,
+    this.calendarEntry
   });
 
   factory DeliverableModel.fromJson(Map<String, dynamic> json) {
@@ -69,7 +82,8 @@ class DeliverableModel {
       submissionProofId: json['submission_proof_id'],
       dueDate: DateTime.parse(json['due_date']),
       brief: json['brief'],
-      submissionProof: json['submission_proof'] == null ? null : SubmissionProof.fromJson(json['submission_proof'])
+      submissionProof: json['submission_proof'] == null ? null : SubmissionProof.fromJson(json['submission_proof']),
+      calendarEntry: json['calendar_entry'] == null ? null : CalendarEntry.fromJson(json['calendar_entry'])
     );
   }
 }

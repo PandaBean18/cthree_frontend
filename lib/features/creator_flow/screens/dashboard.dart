@@ -1,6 +1,8 @@
 import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:cthree/core/api/calendar_repository.dart';
+import 'package:cthree/core/models/calendar_entry_model.dart';
 
 class ContentPlannerScreen extends StatefulWidget {
   const ContentPlannerScreen({super.key});
@@ -13,18 +15,41 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  bool isDraftDone = false;
-  bool isVlogDone = false;
-  bool isMeetingDone = true;
   var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   String selectedDayStr = "";
   int selectedYear = DateTime.now().year;
   int selectedMonth = DateTime.now().month;
+  final CalendarRepository _calendarRepository = CalendarRepository();
+  CalendarModel? _calendarData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCalendar();
+  }
+
+  Future<void> _fetchCalendar() async {
+    try {
+      final data = await _calendarRepository.getCalendar();
+
+      if (mounted) {
+        setState(() {
+          _calendarData = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
+      body: _isLoading 
+      ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.secondary,))
+      : SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.all(24),
@@ -34,24 +59,14 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
               _buildHeader(),
               const SizedBox(height: 32),
               
-              // --- Optimized Calendar ---
               _buildTableCalendar(),
 
               const SizedBox(height: 40),
               _buildScheduleHeader(),
               const SizedBox(height: 24),
 
-              // Tasks (These will eventually map to your Rails API data)
-              _buildTaskCard(time: "10:00 AM", title: "Nike Campaign Draft", status: isDraftDone ? "COMPLETED" : "DRAFTING PHASE", accent: const Color(0xFF45A2FF), isDone: isDraftDone, onTap: () {setState(() {
-                isDraftDone = !isDraftDone;
-              });}),
-              _buildTaskCard(time: "02:30 PM", title: "Vlog Editing Sesh", status: isVlogDone ? "COMPLETED" : "READY TO START", accent: const Color(0xFFE157A4), isDone: isVlogDone, onTap: () {setState(() {
-                isVlogDone = !isVlogDone;
-              });}),
-              _buildTaskCard(time: "05:00 PM", title: "Brand Meeting", status: isMeetingDone ? "COMPLETED" : "SCHEDULED",accent: const Color(0xFF45A2FF), isDone: true, onTap: () {setState(() {
-                isMeetingDone = !isMeetingDone;
-              });}),
-              
+              _buildTasksForDay(_selectedDay ?? _focusedDay),
+
               const SizedBox(height: 100),
             ],
           ),
@@ -60,24 +75,58 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
       floatingActionButton: _buildBottomActions(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
-
-    
   }
 
   Widget _buildTableCalendar() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF12151C), // Background
+        color: const Color(0xFF12151C), 
         borderRadius: BorderRadius.circular(16),
       ),
       child: TableCalendar(
+        eventLoader: (day) {
+          return _calendarData?.data[day.year]?[day.month]?[day.day] ?? [];
+        },
+        calendarBuilders: CalendarBuilders(
+          markerBuilder: (context, date, events) {
+            if (events.isEmpty) return const SizedBox.shrink();
+
+            final tasks = events.cast<CalendarEntryModel>();
+
+            final uniqueTypes = tasks.map((e) => e.entryType).toSet();
+
+            if (_selectedDay != null && _selectedDay == date) {
+              return const SizedBox.shrink();
+            }
+
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: uniqueTypes.map((type) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                      width: (uniqueTypes.length > 3) ? 3 : 6,
+                      height: (uniqueTypes.length > 3) ? 3 : 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _getAccentColor(type)!,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                SizedBox(height: 9,)
+              ]
+            );
+          }
+        ),
         firstDay: DateTime.utc(2020, 1, 1),
         lastDay: DateTime.utc(2030, 12, 31),
         focusedDay: _focusedDay,
         calendarFormat: _calendarFormat,
         startingDayOfWeek: StartingDayOfWeek.sunday,
         
-        // --- Styling to match your UI ---
         headerStyle: const HeaderStyle(
           formatButtonVisible: false,
           titleCentered: true,
@@ -92,46 +141,46 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
         calendarStyle: CalendarStyle(
           defaultTextStyle: const TextStyle(color: Color(0xFF6F7685)),
           weekendTextStyle: const TextStyle(color: Color(0xFF6F7685)),
+
+          defaultDecoration: BoxDecoration(
+            shape: BoxShape.rectangle,
+            borderRadius: BorderRadius.circular(8),
+          ),
           
-          // Selection Styling
           selectedDecoration: const BoxDecoration(
-            color: Color(0xFFE157A4), // Your Secondary Pink
+            color: Color(0xFFE157A4), 
             shape: BoxShape.rectangle,
             borderRadius: BorderRadius.all(Radius.circular(8)),
           ),
           
-          // Today Styling
           todayDecoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF45A2FF), width: 1), // Primary Blue outline
+            border: Border.all(color: const Color(0xFF45A2FF), width: 1), 
             shape: BoxShape.rectangle,
             borderRadius: const BorderRadius.all(Radius.circular(8)),
           ),
           
-          // Grid lines effect
           outsideDaysVisible: false,
           rowDecoration: const BoxDecoration(
             border: Border(bottom: BorderSide(color: Color(0xFF1E222A), width: 0.5)),
           ),
         ),
 
-        // --- Logic ---
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
         onDaySelected: (selectedDay, focusedDay) {
+          HashMap<int, String> months = HashMap();
+          months[1] = 'JAN';
+          months[2] = 'FEB';
+          months[3] = 'MAR';
+          months[4] = 'APR';
+          months[5] = 'MAY';
+          months[6] = 'JUN';
+          months[7] = 'JUL';
+          months[8] = 'AUG';
+          months[9] = 'SEP';
+          months[10] = 'OCT';
+          months[11] = 'NOV';
+          months[12] = 'DEC';
           setState(() {
-            HashMap<int, String> months = new HashMap();
-            months[1] = 'JAN';
-            months[2] = 'FEB';
-            months[3] = 'MAR';
-            months[4] = 'APR';
-            months[5] = 'MAY';
-            months[6] = 'JUN';
-            months[7] = 'JUL';
-            months[8] = 'AUG';
-            months[9] = 'SEP';
-            months[10] = 'OCT';
-            months[11] = 'NOV';
-            months[12] = 'DEC';
-
             String monthStr = months[selectedDay.month]!;
             int monthDate = selectedDay.day;
             selectedDayStr = "$monthStr $monthDate";
@@ -144,6 +193,18 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
         },
       ),
     );
+  }
+
+  Color? _getAccentColor(String type) {
+    final Map<String, Color> accents = {
+      'reel': Theme.of(context).colorScheme.secondary,
+      'post': Theme.of(context).primaryColor,
+      'video':  Color(0xFFEE4445),
+      'story': Color(0xFFF97316),
+      'other': Colors.white
+    };
+    
+    return accents[type];
   }
 
  Widget _buildHeader() {
@@ -164,7 +225,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
             Text(
               "PLANNER",
               style: TextStyle(
-                color: const Color(0xFF45A2FF).withOpacity(0.8), // Primary Blue
+                color: const Color(0xFF45A2FF).withValues(alpha: 0.8),
                 fontSize: 32, 
                 fontWeight: FontWeight.bold, 
                 fontStyle: FontStyle.italic,
@@ -172,7 +233,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
             ),
             const SizedBox(height: 4),
              Text(
-              "${months[selectedMonth-1]} ${selectedYear}", 
+              "${months[selectedMonth-1]} $selectedYear", 
               style: TextStyle(color: Color(0xFF6F7685), fontSize: 14),
             ),
           ],
@@ -188,7 +249,6 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
     );
   }
 
-  // The "DAILY SCHEDULE" sub-header with the date chip
   Widget _buildScheduleHeader() {
     return Row(
       children: [
@@ -199,7 +259,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
         const Text(
           "SCHEDULE", 
           style: TextStyle(
-            color: Color(0xFFE157A4), // Secondary Pink
+            color: Color(0xFFE157A4),
             fontSize: 24, 
             fontWeight: FontWeight.bold, 
             fontStyle: FontStyle.italic,
@@ -209,7 +269,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E222A), // Surface
+            color: const Color(0xFF1E222A),
             borderRadius: BorderRadius.circular(12),
           ),
           child:  Text(
@@ -221,36 +281,92 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
     );
   }
 
-  // Helper for the circular buttons in the top right
   Widget _buildHeaderCircle(IconData icon) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: const BoxDecoration(
-        color: Color(0xFF1E222A), // Surface
+        color: Color(0xFF1E222A), 
         shape: BoxShape.circle,
       ),
       child: Icon(icon, color: Colors.white, size: 20),
     );
   }
 
+  Widget _buildTasksForDay(DateTime day) {
+    final yearData = _calendarData?.data[day.year];
+    final monthData = yearData?[day.month];
+    final List<CalendarEntryModel> tasks = monthData?[day.day] ?? [];
+
+    if (tasks.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            children: [
+              Icon(Icons.event_busy, color: const Color(0xFF6F7685).withValues(alpha: 0.5), size: 48),
+              const SizedBox(height: 16),
+              Text(
+                day.day == DateTime.now().day && day.month == DateTime.now().month
+                    ? "No tasks for today"
+                    : "No tasks for ${months[day.month - 1][0].toUpperCase()}${months[day.month - 1].substring(1).toLowerCase()} ${day.day}",
+                style: const TextStyle(
+                  color: Color(0xFF6F7685),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: tasks.length,
+      itemBuilder: (context, index) {
+        final entry = tasks[index];
+
+        final Map<String, Color> accents = {
+          'reel': Theme.of(context).colorScheme.secondary,
+          'post': Theme.of(context).primaryColor,
+          'video':  Color(0xFFEE4445),
+          'story': Color(0xFFF97316),
+          'other': Colors.white
+        };
+        
+        final accent = accents[entry.entryType];
+
+        return _buildTaskCard(
+          entry: entry,
+          accent: accent!,
+        );
+      },
+    );
+  }
+
   Widget _buildTaskCard({
-    required String time,
-    required String title,
-    required String status,
+    required CalendarEntryModel entry,
     required Color accent,
-    required bool isDone,
-    required VoidCallback onTap, // New callback parameter
   }) {
     return GestureDetector(
-      onTap: onTap, // Entire card is now clickable for better UX
+      onTap: () {
+        setState(() {
+          entry.isCompleted = !entry.isCompleted;
+        });
+      },
       child: Opacity(
-        opacity: isDone ? 0.5 : 1.0,
+        opacity: entry.isCompleted ? 0.5 : 1.0,
         child: Container(
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E222A), 
+            color: const Color(0xFF1E222A),
             borderRadius: BorderRadius.circular(20),
+            border: entry.isCompleted 
+                ? null 
+                : Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: Row(
             children: [
@@ -258,42 +374,62 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(time, style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
                     Text(
-                      title, 
+                      entry.entryType.toUpperCase(),
                       style: TextStyle(
-                        color: Colors.white, 
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold, 
-                        decoration: isDone ? TextDecoration.lineThrough : null,
+                        color: accent, 
+                        fontSize: 12, 
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(isDone ? Icons.check_circle : Icons.circle, color: accent, size: 12),
-                        const SizedBox(width: 8),
-                        Text(status, style: const TextStyle(color: Color(0xFF6F7685), fontSize: 10, letterSpacing: 1)),
-                      ],
+                    const SizedBox(height: 6),
+                    
+                    Text(
+                      entry.title ?? "Untitled Task",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        decoration: entry.isCompleted ? TextDecoration.lineThrough : null,
+                        decorationColor: accent,
+                      ),
                     ),
+                    
+                    const SizedBox(height: 8),
+                    
+                    Text(
+                        (entry.brief != null && entry.brief!.isNotEmpty 
+                                ? entry.brief! 
+                                : (entry.isCompleted ? "Completed" : "In Progress")),
+                        overflow: TextOverflow.ellipsis, 
+                        style: const TextStyle(
+                          color: Color(0xFF6F7685),
+                          fontSize: 10,
+                          letterSpacing: 1,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    
+                      
                   ],
                 ),
               ),
               
-              // The Interactive Tick Box
               AnimatedContainer(
-                duration: const Duration(milliseconds: 200), // Smooth transition
+                duration: const Duration(milliseconds: 200),
                 height: 28,
                 width: 28,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isDone ? Colors.transparent : const Color(0xFF6F7685),
+                    color: entry.isCompleted ? Colors.transparent : const Color(0xFF6F7685),
                   ),
-                  color: isDone ? const Color(0xFF45A2FF) : Colors.transparent,
+                  color: entry.isCompleted ? const Color(0xFF45A2FF) : Colors.transparent,
                 ),
-                child: isDone ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+                child: entry.isCompleted 
+                    ? const Icon(Icons.check, color: Colors.white, size: 18) 
+                    : null,
               )
             ],
           ),
@@ -324,6 +460,4 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
       ),
     );
   }
-
-  // ... (Keep the _buildHeader, _buildScheduleHeader, _buildTaskCard, and _buildBottomActions from the previous response)
 }

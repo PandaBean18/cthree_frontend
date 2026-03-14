@@ -1,6 +1,7 @@
 import 'package:cthree/core/api/dio_client.dart';
 import 'package:cthree/core/models/calendar_entry_model.dart';
 import 'package:dio/dio.dart';
+import 'package:cthree/core/models/calendar_entry_model.dart';
 
 class CalendarRepository {
   final Dio _dio = DioClient().dio;
@@ -28,6 +29,23 @@ class CalendarRepository {
       }
     } catch (e) {
       return false;
+    }
+  }
+
+  Future<CalendarModel?> getCalendar() async {
+    try {
+      final response = await _dio.get(
+        '/calendar_entries'
+      );
+
+      if (response.statusCode == 200) {
+        return CalendarModel.fromJson(response.data);
+      } else {
+        return null;
+      }
+      
+     } catch (e) {
+      return null;
     }
   }
 }
