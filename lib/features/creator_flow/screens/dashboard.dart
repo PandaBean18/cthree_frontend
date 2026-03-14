@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:cthree/core/api/calendar_repository.dart';
 import 'package:cthree/core/models/calendar_entry_model.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 
 class ContentPlannerScreen extends StatefulWidget {
   const ContentPlannerScreen({super.key});
@@ -207,7 +209,9 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
     return accents[type];
   }
 
- Widget _buildHeader() {
+  Widget _buildHeader() {
+    final double progress = _getMonthlyProgress();
+    final int percentage = (progress * 100).toInt();
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -238,15 +242,68 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
             ),
           ],
         ),
-        Row(
-          children: [
-            _buildHeaderCircle(Icons.list),
-            const SizedBox(width: 12),
-            _buildHeaderCircle(Icons.more_horiz),
-          ],
+        Center(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 6,
+                  backgroundColor: Color(0xFF6F7685),
+                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.secondary),
+                  strokeCap: StrokeCap.butt,
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "$percentage%",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: GoogleFonts.robotoMono().fontFamily,
+                    ),
+                  ),
+                  Text(
+                    "Done",
+                    style: TextStyle(
+                      color: Color(0xFF6F7685),
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: GoogleFonts.robotoMono().fontFamily,
+                    ),
+                  )
+                ],
+              )
+            ],
+          ),
         )
       ],
     );
+  }
+
+  double _getMonthlyProgress() {
+    if (_calendarData == null) return 0.0;
+    
+    final monthData = _calendarData!.data[selectedYear]?[selectedMonth];
+    if (monthData == null || monthData.isEmpty) return 0.0;
+
+    int totalTasks = 0;
+    int completedTasks = 0;
+
+    monthData.forEach((day, tasks) {
+      for (var task in tasks) {
+        totalTasks++;
+        if (task.isCompleted) completedTasks++;
+      }
+    });
+
+    return totalTasks == 0 ? 0.0 : completedTasks / totalTasks;
   }
 
   Widget _buildScheduleHeader() {
@@ -442,14 +499,8 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          FloatingActionButton(
-            heroTag: "chat",
-            backgroundColor: const Color(0xFF1E222A),
-            onPressed: () {},
-            child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-          ),
           FloatingActionButton.extended(
             heroTag: "add",
             backgroundColor: const Color(0xFF45A2FF),
