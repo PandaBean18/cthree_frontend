@@ -79,6 +79,201 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
     );
   }
 
+  Future<void> _showAddEntryDialog(BuildContext context) async {
+    final TextEditingController _titleController = TextEditingController();
+    final TextEditingController _briefController = TextEditingController();
+    DateTime _selectedDate = DateTime.now();
+    String _selectedType = 'reel';
+    bool _isCreating = false;
+
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadiusGeometry.circular(20)),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "New Calendar Entry",
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Color(0xFF6F7685)),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          )
+                        ],
+                      ),
+                      Divider(color: Theme.of(context).colorScheme.surface,),
+                      const SizedBox(height: 16,),
+
+                      _buildInputField(controller: _titleController, label: "Title", placeholder: 'e.g. Edit Jaipur Vlog'),
+                      const SizedBox(height: 16,),
+
+                      _buildInputField(controller: _briefController, label: 'Brief (Optional)', placeholder: 'e.g. Edit Jaipur vlog, full version for yt and teaser for insta', maxLines: 2),
+                      const SizedBox(height: 16),
+
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Entry Type', style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 5),
+                      _buildDropdown(value: _selectedType, onChanged: (val) => setDialogState(() => _selectedType = val!)),
+                      const SizedBox(height: 24,),
+
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Select Date', style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: ColorScheme.dark(
+                            primary: Theme.of(context).primaryColor,
+                            surface: Theme.of(context).scaffoldBackgroundColor
+                          )
+                        ),
+                        child: SizedBox(
+                          height: 250,
+                          child: CalendarDatePicker(
+                            initialDate: _selectedDate,
+                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                            lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                            onDateChanged: (date) => setDialogState(() => _selectedDate = date),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                          ),
+                          onPressed: _isCreating
+                            ? null
+                            : () async {
+                            if (_titleController.text.isNotEmpty) {
+                              setDialogState(() {
+                                _isCreating = true;
+                              });
+                              final newEntry = CalendarEntryModel(
+                                title: _titleController.text,
+                                brief: _briefController.text,
+                                date: _selectedDate,
+                                entryType: _selectedType,
+                                isCompleted: false,
+                              );
+                              
+                              final result = await _calendarRepository.createDeliverableEntry(newEntry);
+
+                              if (result == true) {
+                                Navigator.pop(context);
+                                setState(() {
+                                  _isLoading = true;
+                                });
+                                await _fetchCalendar();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Something went wrong"),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              } 
+                            }
+                          },
+                          child: _isCreating 
+                          ? CircularProgressIndicator(color: Colors.white, constraints: BoxConstraints(minHeight: 20, minWidth: 20))
+                          : Text("Add To Calendar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      } 
+    );
+  }
+
+  Widget _buildInputField({required TextEditingController controller, required String label, required String placeholder, int maxLines = 1 }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8,),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: placeholder,
+            hintStyle: TextStyle(color: Color(0xFF6F7685), fontSize: 12),
+            filled: true,
+            fillColor: Theme.of(context).colorScheme.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+          ),
+        )
+      ],
+    );
+  }
+
+  Widget _buildDropdown({ required String value, required Function(String?) onChanged}) {
+    final Map<String, Color> accents = {
+      'reel': Theme.of(context).colorScheme.secondary,
+      'post': Theme.of(context).primaryColor,
+      'video':  Color(0xFFEE4445),
+      'story': Color(0xFFF97316),
+      'other': Colors.white
+    };
+    return DropdownButtonFormField<String>(
+      value: value,
+      borderRadius: BorderRadius.circular(12),
+      dropdownColor: Theme.of(context).colorScheme.surface,
+      isExpanded: true,
+      decoration: InputDecoration(
+        floatingLabelBehavior: FloatingLabelBehavior.never,
+        labelStyle: const TextStyle(color: Color(0xFF6F7685)),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surface,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      items: accents.keys.map((String type) {
+        return DropdownMenuItem(
+          value: type,
+          child: Row(
+            children: [
+              Icon(Icons.circle, size: 10, color: accents[type],),
+              const SizedBox(width: 10,),
+              Text(type.toUpperCase(), style: TextStyle(fontSize: 12),)
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: onChanged,
+    );
+  }
+
   Widget _buildTableCalendar() {
     return Container(
       decoration: BoxDecoration(
@@ -398,6 +593,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
   }) {
     return GestureDetector(
       onTap: () {
+        entry.isCompleted ? _calendarRepository.undoCompleteEntry(entry) : _calendarRepository.completeEntry(entry);
         setState(() {
           entry.isCompleted = !entry.isCompleted;
         });
@@ -493,7 +689,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
           FloatingActionButton.extended(
             heroTag: "add",
             backgroundColor: const Color(0xFF45A2FF),
-            onPressed: () {},
+            onPressed: () {_showAddEntryDialog(context);},
             label: const Icon(Icons.add, color: Colors.white, size: 30),
           ),
         ],

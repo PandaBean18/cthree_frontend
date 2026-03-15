@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 class CalendarEntryModel {
+  String? id;
   String? title;
   String? brief; 
   DateTime date;
@@ -8,10 +9,11 @@ class CalendarEntryModel {
   bool isCompleted;
   String? deliverableId;
 
-  CalendarEntryModel({ this.title, this.brief, required this.date, required this.entryType, required this.isCompleted, this.deliverableId});
+  CalendarEntryModel({ this.id, this.title, this.brief, required this.date, required this.entryType, required this.isCompleted, this.deliverableId});
 
   factory CalendarEntryModel.fromJson(Map<String, dynamic> json) {
     return CalendarEntryModel(
+      id: json['id'],
       title: json['title'], 
       date: DateTime.parse(json['date']), 
       entryType: json['entry_type'], 

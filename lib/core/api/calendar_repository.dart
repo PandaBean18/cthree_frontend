@@ -31,6 +31,32 @@ class CalendarRepository {
     }
   }
 
+  Future<void> completeEntry(CalendarEntryModel calendarEntry) async {
+    if (calendarEntry.id == null) {
+      return;
+    }
+    try {
+      await _dio.patch('/calendar_entries/${calendarEntry.id!}/complete');
+
+      return;
+    } catch (e) {
+      return;
+    }
+  }
+
+  Future<void> undoCompleteEntry(CalendarEntryModel calendarEntry) async {
+    if (calendarEntry.id == null) {
+      return;
+    }
+    try {
+      await _dio.patch('/calendar_entries/${calendarEntry.id!}/undo_complete');
+
+      return;
+    } catch (e) {
+      return;
+    }
+  }
+
   Future<CalendarModel?> getCalendar() async {
     try {
       final response = await _dio.get(
