@@ -338,17 +338,6 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
     );
   }
 
-  Widget _buildHeaderCircle(IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E222A), 
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: Colors.white, size: 20),
-    );
-  }
-
   Widget _buildTasksForDay(DateTime day) {
     final yearData = _calendarData?.data[day.year];
     final monthData = yearData?[day.month];

@@ -1,7 +1,6 @@
 import 'package:cthree/core/api/dio_client.dart';
 import 'package:cthree/core/models/calendar_entry_model.dart';
 import 'package:dio/dio.dart';
-import 'package:cthree/core/models/calendar_entry_model.dart';
 
 class CalendarRepository {
   final Dio _dio = DioClient().dio;

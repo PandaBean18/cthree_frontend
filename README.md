@@ -1,16 +1,8 @@
-# flutter_application_1
+# Frontend for cthree
 
-A new Flutter project.
+## Basic Conventions
 
-## Getting Started
+The code follows a model-repo-provider architecture where models define the data, repositories intercat with the API to get data and return the suitable models, and providers provide data needed throughout the app such as current user etc.
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+A signle instance of Dio is used for all API call with custom interceptors to deal with authentication headers and refreshing of tokens.
