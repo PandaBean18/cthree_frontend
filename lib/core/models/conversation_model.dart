@@ -3,11 +3,12 @@ class Message {
   DateTime createdAt;
   DateTime? readAt;
   String senderId;
+  String sender;
 
-  Message({required this.body, required this.createdAt, this.readAt, required this.senderId});
+  Message({required this.body, required this.createdAt, this.readAt, required this.senderId, required this.sender});
 
   factory Message.fromJson(Map<String, dynamic> json) {
-    return Message(body: json['body'], createdAt: DateTime.parse(json['created_at']), senderId: json['sender_id'], readAt: json['read_at'] != null ? DateTime.parse(json['read_at']) : null);
+    return Message(body: json['body'], createdAt: DateTime.parse(json['created_at']), senderId: json['sender_id'], readAt: json['read_at'] != null ? DateTime.parse(json['read_at']) : null, sender: json['sender'],);
   }
 }
 

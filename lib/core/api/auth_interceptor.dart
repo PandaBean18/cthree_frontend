@@ -20,6 +20,10 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
+    if (err.response?.statusCode == 401 && err.response?.realUri.toString() == 'http://127.0.0.1:3000/auth/refresh') {
+      await AuthStorage.deleteAll();
+      return handler.next(err); 
+    }
     if (err.response?.statusCode == 401) {
       final refreshToken = await AuthStorage.getRefreshToken();
       final jti = await AuthStorage.getJti();
@@ -42,6 +46,9 @@ class AuthInterceptor extends Interceptor {
             final clonedRequest = await dio.fetch(err.requestOptions);
             
             return handler.resolve(clonedRequest);
+          } else {
+            await AuthStorage.deleteAll();
+            return handler.next(err); 
           }
         } catch (refreshErr) {
           await AuthStorage.deleteAll();
