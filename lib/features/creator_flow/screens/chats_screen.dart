@@ -2,6 +2,7 @@ import 'package:cthree/core/api/conversation_repository.dart';
 import 'package:cthree/core/models/conversation_model.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cthree/features/creator_flow/screens/individual_chat_screen.dart';
 
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key});
@@ -79,7 +80,14 @@ class _ChatsScreenState extends State<ChatsScreen> {
   Widget _buildChatTile(ConversationModel chat) {
     return ListTile(
       contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-      onTap: () {},
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => IndividualChatScreen(conversation: chat),
+          ),
+        );
+      },
       leading: CircleAvatar(
         radius: 28,
         backgroundColor: Theme.of(context).colorScheme.surface,
@@ -121,7 +129,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (chat.latestMessage!.readAt == null)
+            if (chat.latestMessage!.readAt == null && chat.latestMessage!.sender == 'Sponsor')
               Container(
                 width: 8,
                 height: 8,
