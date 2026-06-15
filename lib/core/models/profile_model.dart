@@ -1,14 +1,4 @@
-class PortfolioItem {
-  final String url;
-  final String thumbnailUrl;
-  final String mediaType;
-
-  PortfolioItem({required this.url, required this.thumbnailUrl, required this.mediaType});
-
-  factory PortfolioItem.fromJson(Map<String, dynamic> json) {
-    return PortfolioItem(url: json['url'], thumbnailUrl: json['thumbnail_url'], mediaType: json['media_type']);
-  }
-}
+import 'portfolio_item_model.dart';
 
 class ProfileModel {
   final String id;

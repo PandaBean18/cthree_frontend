@@ -4,6 +4,8 @@ import 'package:cthree/core/api/dio_client.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 import 'package:mime/mime.dart';
+import 'package:cthree/data/dto/create_portfolio_item_request.dart';
+import 'package:cthree/core/models/portfolio_item_model.dart';
 
 class ProfileRepository {
   final Dio _dio = DioClient().dio;
@@ -22,6 +24,25 @@ class ProfileRepository {
       }
       return null;
     } catch (e) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> parseLink(String url) async {
+    try {
+      final response = await _dio.post(
+        '/media/parse_link',
+        data: {
+          'url': url,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print("Error in parseLink: $e");
       return null;
     }
   }
@@ -138,5 +159,33 @@ class ProfileRepository {
 
     startUpload();
     return controller.stream;
+  }
+
+  Future<PortfolioItem?> createPortfolioItem(CreatePortfolioItemRequest request) async {
+    try {
+      final response = await _dio.post(
+        '/portfolio_items',
+        data: request.toJson(),
+      );
+
+      if (response.statusCode == 201 && response.data != null) {
+        return PortfolioItem.fromJson(response.data);
+      }
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 422) {
+        final errorData = e.response?.data;
+        if (errorData != null && errorData['errors'] != null) {
+          final errors = List<String>.from(errorData['errors']);
+          throw Exception(errors.join(', '));
+        }
+        throw Exception('Validation failed');
+      }
+      print("DioError in createPortfolioItem: ${e.message}");
+      rethrow;
+    } catch (e) {
+      print("Error in createPortfolioItem: $e");
+      rethrow;
+    }
   }
 }
