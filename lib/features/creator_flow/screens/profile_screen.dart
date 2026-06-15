@@ -9,6 +9,7 @@ import 'package:cthree/core/app_video_player.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:cthree/core/models/portfolio_item_model.dart';
 import 'package:cthree/data/dto/create_portfolio_item_request.dart';
+import 'dart:io';
 
 class CreatorProfileScreen extends StatefulWidget {
   const CreatorProfileScreen({super.key});
@@ -29,77 +30,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   double _sampleWorkUploadProgress = 0.0;
   bool _isSampleWorkUploading = false;
   final ImagePicker _sampleWorkPicker = ImagePicker();
-
-  Future<void> _handleSampleWorkUpload() async {
-    final XFile? media = await _sampleWorkPicker.pickMedia(
-      imageQuality: 80,
-    );
-
-    if (media == null) return;
-
-    _profileRepo.uploadSampleWork(media).listen(
-      (progress) {
-        setState(() {
-          _isSampleWorkUploading = true;
-          _sampleWorkUploadProgress = progress;
-        });
-
-        if (progress >= 1.0) {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            setState(() {
-              _isSampleWorkUploading = false;
-              _sampleWorkUploadProgress = 0;
-            });
-            _loadProfile();
-          });
-        }
-      },
-      onError: (e) {
-        setState(() {
-          _isSampleWorkUploading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Upload failed: $e")),
-        );
-      }
-    );
-  }
-
-  Future<void> _handleProfileImageUpload() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 100,
-    );
-    
-    if (image == null) return;
-
-    _profileRepo.updateProfilePicture(image).listen(
-      (progress) {
-        setState(() {
-          _isProfileUploading = true;
-          _profileUploadProgress = progress;
-        });
-
-        if (progress >= 1.0) {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            setState(() {
-              _isProfileUploading = false;
-              _profileUploadProgress = 0;
-            });
-            _loadProfile();
-          });
-        }
-      },
-      onError: (e) {
-        setState(() {
-          _isProfileUploading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Upload failed: $e")),
-        );
-      }
-    );
-  }
 
   @override
   void initState() {
@@ -212,6 +142,125 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _handleSampleWorkUpload() async {
+    final XFile? media = await _sampleWorkPicker.pickMedia(
+      imageQuality: 80,
+    );
+
+    if (media == null) return;
+
+    final path = media.path.toLowerCase();
+    final isVideo = path.endsWith('.mp4') || path.endsWith('.mov') || path.endsWith('.mkv') || path.endsWith('.avi');
+
+    if (mounted) {
+      _showUploadMediaReviewModal(context, media, isVideo);
+    }
+  }
+
+  void _executeMediaUpload({
+    required XFile mediaFile,
+    required String title,
+    required String description,
+    required bool isCollaborative,
+    String? collabBrand,
+    String? externalUrl,
+  }) {
+    _profileRepo.uploadSampleWork(
+      mediaFile: mediaFile, 
+      title: title, 
+      description: description, 
+      isCollaborative: isCollaborative, 
+      collabBrand: collabBrand, 
+      externalUrl: externalUrl).listen(
+      (progress) {
+        setState(() {
+          _isSampleWorkUploading = true;
+          _sampleWorkUploadProgress = progress;
+        });
+
+        if (progress >= 1.0) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            setState(() {
+              _isSampleWorkUploading = false;
+              _sampleWorkUploadProgress = 0;
+            });
+            _loadProfile();
+          });
+        }
+      },
+      onError: (e) {
+        setState(() {
+          _isSampleWorkUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Upload failed: $e")),
+        );
+      }
+    );
+  }
+
+  Widget _buildLocalMediaPreviewBox(XFile media, {required bool isVideo}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Selected Media", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Container(
+          height: 180,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E222A),
+            borderRadius: BorderRadius.circular(12),
+            image: !isVideo
+              ? DecorationImage(image: FileImage(File(media.path)), fit: BoxFit.cover)
+              : null,
+          ),
+          child: Center(
+            child: isVideo
+                ? const Icon(Icons.play_circle_fill, color: Colors.white, size: 48)
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleProfileImageUpload() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 100,
+    );
+    
+    if (image == null) return;
+
+    _profileRepo.updateProfilePicture(image).listen(
+      (progress) {
+        setState(() {
+          _isProfileUploading = true;
+          _profileUploadProgress = progress;
+        });
+
+        if (progress >= 1.0) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            setState(() {
+              _isProfileUploading = false;
+              _profileUploadProgress = 0;
+            });
+            _loadProfile();
+          });
+        }
+      },
+      onError: (e) {
+        setState(() {
+          _isProfileUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Upload failed: $e")),
+        );
+      }
     );
   }
 
@@ -582,6 +631,141 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                                 )
                               : const Text("Confirm & Add to Portfolio", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showUploadMediaReviewModal(BuildContext context, XFile media, bool isVideo) {
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController descController = TextEditingController();
+    final TextEditingController brandController = TextEditingController();
+    final TextEditingController externalUrlController = TextEditingController();
+    
+    bool isCollab = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, 
+      backgroundColor: const Color(0xFF12151C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.9, 
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (_, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                    left: 24,
+                    right: 24,
+                    top: 24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Review Upload", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      _buildLocalMediaPreviewBox(media, isVideo: isVideo),
+                      const SizedBox(height: 24),
+
+                      const Text("Title *", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: titleController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _getInputDecoration("Title"),
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text("Description *", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: descController,
+                        maxLines: 4,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _getInputDecoration("Description"),
+                      ),
+                      const SizedBox(height: 24),
+
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text("Was this a collaboration?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        activeColor: Theme.of(context).primaryColor,
+                        value: isCollab,
+                        onChanged: (val) {
+                          setModalState(() => isCollab = val);
+                        },
+                      ),
+                      if (isCollab) ...[
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: brandController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _getInputDecoration("Brand Name (e.g., Nike)"),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      const Text("External URL (Optional)", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: externalUrlController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _getInputDecoration("e.g., Link to live post"),
+                      ),
+                      const SizedBox(height: 32),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.secondary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            print("Direct Upload confirmed.");
+                            print("Title: ${titleController.text}");
+                            print("Desc: ${descController.text}");
+                            print("URL: ${externalUrlController.text}");
+                            
+                            Navigator.pop(context);
+                            _executeMediaUpload(
+                              mediaFile: media,
+                              title: titleController.text,
+                              description: descController.text,
+                              isCollaborative: isCollab,
+                              collabBrand: brandController.text,
+                              externalUrl: externalUrlController.text,
+                            );
+                          },
+                          child: const Text("Confirm & Upload", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],

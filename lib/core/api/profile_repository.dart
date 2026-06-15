@@ -99,7 +99,14 @@ class ProfileRepository {
     return controller.stream;
   }
 
-  Stream<double> uploadSampleWork(XFile mediaFile) {
+  Stream<double> uploadSampleWork({
+    required XFile mediaFile,
+    required String title,
+    required String description,
+    required bool isCollaborative,
+    String? collabBrand,
+    String? externalUrl,
+  }) {
     final controller = StreamController<double>();
 
     Future<void> startUpload() async {
@@ -115,8 +122,11 @@ class ProfileRepository {
 
       try {
         controller.add(0.0);
+        
+        // 1. Get Upload Signature
         final sigResponse = await _dio.get('/media/signature');
         final sigData = sigResponse.data;
+        
         final formData = FormData.fromMap({
           "file": await MultipartFile.fromFile(mediaFile.path),
           "api_key": sigData['api_key'],
@@ -127,18 +137,22 @@ class ProfileRepository {
           "source": "uw",
         });
 
+        // 2. Upload to Cloudinary
         final cloudinaryResponse = await _cloudinaryDio.post(
-          "https://api.cloudinary.com/v1_1/${sigData['cloud_name']}/${mediaType}/upload",
+          "https://api.cloudinary.com/v1_1/${sigData['cloud_name']}/$mediaType/upload",
           data: formData,
           onSendProgress: (sent, total) {
             double progress = sent / total;
-            controller.add(progress * 0.9);
+            // Cap Cloudinary progress at 80% to leave room for Rails API calls
+            controller.add(progress * 0.8); 
           }
         );
 
         if (cloudinaryResponse.statusCode == 200) {
           final cData = cloudinaryResponse.data;
-          await _dio.post('/media/confirm_upload', data: {
+          
+          // 3. Confirm Upload with Rails (Registers the asset in your DB)
+          final confirmResponse = await _dio.post('/media/confirm_upload', data: {
             "public_id": cData['public_id'],
             "resource_type": mediaType,
             "label": 'portfolio',
@@ -148,8 +162,29 @@ class ProfileRepository {
               "format": cData['format'],
             }
           });
-          controller.add(1);
+
+          // Extract the media item ID returned by Rails
+          final mediaItemId = confirmResponse.data['item']['id'];
+          
+          controller.add(0.9); // Reached 90%
+
+          // 4. Create the final Portfolio Item
+          await _dio.post('/portfolio_items', data: {
+            "title": title,
+            "description": description,
+            "is_collaborative": isCollaborative,
+            if (isCollaborative && collabBrand != null && collabBrand.isNotEmpty) 
+              "collab_brand": collabBrand,
+            if (externalUrl != null && externalUrl.isNotEmpty) 
+              "external_url": externalUrl,
+            "media_item_id": mediaItemId,
+          });
+
+          // Complete!
+          controller.add(1.0);
           await controller.close();
+        } else {
+          throw Exception("Cloudinary upload failed");
         }
       } catch (e) {
         controller.addError(e);
