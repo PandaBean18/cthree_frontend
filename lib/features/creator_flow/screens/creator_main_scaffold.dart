@@ -3,6 +3,7 @@ import 'package:cthree/features/creator_flow/screens/dashboard.dart';
 import 'package:cthree/features/creator_flow/screens/profile_screen.dart';
 import 'package:cthree/features/creator_flow/screens/deliverables_screen.dart';
 import 'package:cthree/features/creator_flow/screens/chats_screen.dart';
+import 'package:cthree/features/creator_flow/screens/ideas_screen.dart';
 
 class CreatorMainScaffold extends StatefulWidget {
   const CreatorMainScaffold({super.key});
@@ -16,6 +17,7 @@ class _CreatorMainScaffold extends State<CreatorMainScaffold> {
 
   final List<Widget> _screens = [
     const ContentPlannerScreen(),
+    const IdeasScreen(),
     const ChatsScreen(),
     const DeliverablesScreen(),
     const CreatorProfileScreen(),
@@ -35,9 +37,10 @@ class _CreatorMainScaffold extends State<CreatorMainScaffold> {
         index: _selectedScreen,
         children: _screens,
       ),
-
       bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(canvasColor: Theme.of(context).colorScheme.surface),
+        data: Theme.of(context).copyWith(
+          canvasColor: Theme.of(context).colorScheme.surface,
+        ),
         child: BottomNavigationBar(
           currentIndex: _selectedScreen,
           onTap: _onItemTapped,
@@ -47,10 +50,19 @@ class _CreatorMainScaffold extends State<CreatorMainScaffold> {
           showSelectedLabels: true,
           showUnselectedLabels: false,
           type: BottomNavigationBarType.fixed,
-          items: [
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            letterSpacing: 0.5,
+          ),
+          items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_rounded),
-              label: 'Dashboard',
+              label: 'Planner',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.lightbulb_outline_rounded),
+              label: 'Workspace',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.chat_bubble_rounded),
@@ -58,7 +70,7 @@ class _CreatorMainScaffold extends State<CreatorMainScaffold> {
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.assignment_turned_in_rounded),
-              label: 'Deliverables',
+              label: 'Campaigns',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_rounded),
