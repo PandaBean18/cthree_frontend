@@ -10,7 +10,7 @@ class DioClient {
   DioClient._internal() {
     dio = Dio(
       BaseOptions(
-        baseUrl: 'http://127.0.0.1:3000',
+        baseUrl: 'https://api.ontwynn.com',
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: Duration(seconds: 15),
         headers: {

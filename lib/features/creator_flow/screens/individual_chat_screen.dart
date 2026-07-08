@@ -55,7 +55,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     try {
       final token =  await AuthStorage.getAccessToken(); 
       
-      final wsUrl = Uri.parse('ws://localhost:3000/cable?token=$token');
+      final wsUrl = Uri.parse('wss://api.ontwynn.com/cable?token=$token');
       
       _channel = WebSocketChannel.connect(wsUrl);
 

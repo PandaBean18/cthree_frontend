@@ -281,6 +281,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: TableCalendar(
+        pageJumpingEnabled: true,
         eventLoader: (day) {
           return _calendarData?.data[day.year]?[day.month]?[day.day] ?? [];
         },
@@ -354,6 +355,11 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
             border: Border.all(color: const Color(0xFF45A2FF), width: 1), 
             shape: BoxShape.rectangle,
             borderRadius: const BorderRadius.all(Radius.circular(8)),
+          ),
+
+          weekendDecoration: BoxDecoration(
+            shape: BoxShape.rectangle,
+            borderRadius: BorderRadius.circular(8),
           ),
           
           outsideDaysVisible: false,
@@ -543,6 +549,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 40),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.event_busy, color: const Color(0xFF6F7685).withValues(alpha: 0.5), size: 48),
               const SizedBox(height: 16),
