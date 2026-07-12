@@ -8,6 +8,7 @@ class CreatePortfolioItemRequest {
   
   final String? thumbnailUrl;
   final String? mediaUrl;
+  final String? thumbnailItemId;
   
   final String? temporaryThumbnailUrl;
   final String? temporaryMediaUrl;
@@ -21,6 +22,7 @@ class CreatePortfolioItemRequest {
     this.metrics,
     this.thumbnailUrl,
     this.mediaUrl,
+    this.thumbnailItemId,
     this.temporaryThumbnailUrl,
     this.temporaryMediaUrl,
   });
@@ -35,6 +37,7 @@ class CreatePortfolioItemRequest {
       if (metrics != null) 'metrics': metrics,
       if (thumbnailUrl != null) 'thumbnail_url': thumbnailUrl,
       if (mediaUrl != null) 'media_url': mediaUrl,
+      if (thumbnailItemId != null) 'thumbnail_item_id': thumbnailItemId,
       if (temporaryThumbnailUrl != null) 'temporary_thumbnail_url': temporaryThumbnailUrl,
       if (temporaryMediaUrl != null) 'temporary_media_url': temporaryMediaUrl,
     }.removeNulls();

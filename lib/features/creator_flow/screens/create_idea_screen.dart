@@ -69,54 +69,7 @@ class _CreateIdeaScreenState extends State<CreateIdeaScreen> {
     super.dispose();
   }
 
-  void _showAddInspoOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF12151C),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: _buildModalIcon(Icons.link),
-                title: const Text('Paste link (Instagram, YouTube)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showPasteLinkModal();
-                },
-              ),
-              ListTile(
-                leading: _buildModalIcon(Icons.image),
-                title: const Text('Upload image', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _handleImageUpload();
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModalIcon(IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E222A),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: Theme.of(context).primaryColor, size: 20),
-    );
-  }
-
-  void _showPasteLinkModal() {
+  void _showUnifiedAddInspoForm() {
     final TextEditingController linkController = TextEditingController();
     bool isFetching = false;
 
@@ -139,63 +92,100 @@ class _CreateIdeaScreenState extends State<CreateIdeaScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Add Inspiration Link", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: linkController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: "Paste URL here...",
-                      hintStyle: const TextStyle(color: Color(0xFF6F7685)),
-                      filled: true,
-                      fillColor: const Color(0xFF1E222A),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Add Inspiration", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    ],
                   ),
+                  const SizedBox(height: 16),
+                  const Text("External URL", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: linkController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: "e.g., YouTube or Instagram link",
+                            hintStyle: const TextStyle(color: Color(0xFF6F7685)),
+                            filled: true,
+                            fillColor: const Color(0xFF1E222A),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: isFetching ? null : () async {
+                          final url = linkController.text.trim();
+                          if (url.isEmpty) return;
+
+                          setModalState(() => isFetching = true);
+                          
+                          final payload = await _ideaRepo.generateLinkInspoPayload(url);
+                          
+                          if (payload != null && mounted) {
+                            final previewUrl = payload['external_thumbnail_url'] ?? payload['temporary_thumbnail_url'];
+                            
+                            setState(() {
+                              _inspos.add(LocalInspoPreview(
+                                apiPayload: payload,
+                                previewUrl: previewUrl,
+                                originalLink: url,
+                              ));
+                            });
+                            Navigator.pop(context);
+                          } else {
+                            setModalState(() => isFetching = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to parse link")));
+                            }
+                          }
+                        },
+                        child: isFetching
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text("Add Link", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Center(child: Text("OR", style: TextStyle(color: Color(0xFF6F7685), fontWeight: FontWeight.bold))),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _handleImageUpload();
+                      },
+                      icon: Icon(Icons.upload, color: Theme.of(context).primaryColor, size: 20),
+                      label: const Text("Upload Custom Image", style: TextStyle(color: Colors.white)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Theme.of(context).primaryColor),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: isFetching ? null : () async {
-                        final url = linkController.text.trim();
-                        if (url.isEmpty) return;
-
-                        setModalState(() => isFetching = true);
-                        
-                        final payload = await _ideaRepo.generateLinkInspoPayload(url);
-                        
-                        if (payload != null && mounted) {
-                          final previewUrl = payload['external_thumbnail_url'] ?? payload['temporary_thumbnail_url'];
-                          
-                          setState(() {
-                            _inspos.add(LocalInspoPreview(
-                              apiPayload: payload,
-                              previewUrl: previewUrl,
-                              originalLink: url,
-                            ));
-                          });
-                          Navigator.pop(context);
-                        } else {
-                          setModalState(() => isFetching = false);
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to parse link")));
-                        }
-                      },
-                      child: isFetching
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text("Fetch Details", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
               ),
             );
-          },
+          }
         );
-      },
+      }
     );
   }
 
@@ -306,7 +296,7 @@ class _CreateIdeaScreenState extends State<CreateIdeaScreen> {
                         style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
                       ),
                       TextButton.icon(
-                        onPressed: _isUploadingInspo ? null : _showAddInspoOptions,
+                        onPressed: _isUploadingInspo ? null : _showUnifiedAddInspoForm,
                         icon: Icon(Icons.add_circle_rounded, size: 18, color: pinkAccent),
                         label: Text("Add", style: TextStyle(color: pinkAccent, fontWeight: FontWeight.bold)),
                         style: TextButton.styleFrom(

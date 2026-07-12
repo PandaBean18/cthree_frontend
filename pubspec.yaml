@@ -30,9 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_secure_storage: ^9.0.0
-  google_fonts: ^6.2.1
-  font_awesome_flutter: ^10.7.0
+  flutter_secure_storage: ^10.3.1
+  google_fonts: ^8.1.0
+  font_awesome_flutter: ^11.0.0
   table_calendar: ^3.1.2
   jwt_decoder: ^2.0.1
   dio: ^5.4.1
@@ -41,7 +41,7 @@ dependencies:
   image_picker: ^1.0.7
   video_player: ^2.8.1
   mime_dart: ^3.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.0
   intl: ^0.20.2
 
@@ -54,6 +54,7 @@ dependencies:
   flutter_quill_extensions: ^11.0.0
   flutter_localizations:
     sdk: flutter
+  quill_native_bridge_windows: ^0.0.2
 
 dev_dependencies:
   flutter_test:
@@ -64,7 +65,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -120,3 +121,6 @@ flutter_native_splash:
   android_12:
     image: assets/images/logo.png
     color: "#12151c"
+
+dependency_overrides:
+  win32: 5.5.4

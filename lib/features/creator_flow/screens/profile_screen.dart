@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:chart_sparkline/chart_sparkline.dart';
 import 'package:cthree/core/models/profile_model.dart';
 import 'package:cthree/core/api/profile_repository.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +8,8 @@ import 'package:cthree/core/app_video_player.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:cthree/core/models/portfolio_item_model.dart';
 import 'package:cthree/data/dto/create_portfolio_item_request.dart';
+import 'package:cthree/data/dto/create_platform_request.dart';
+import 'package:cthree/core/models/creator_platform_model.dart';
 import 'dart:io';
 
 class CreatorProfileScreen extends StatefulWidget {
@@ -112,31 +113,8 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
               ),
             ),
 
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              sliver: SliverGrid.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.6,
-                children: [
-                  _buildStatCard('1.2M', 'FOLLOWERS'),
-                  _buildStatCard('8.5%', 'ENG. RATE'),
-                ],
-              ),
-            ),
-
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  const Text("CHANNELS", style: TextStyle(color: Color(0xFF6F7685), letterSpacing: 1.2)),
-                  const SizedBox(height: 16,),
-                  _buildChannelCard(FontAwesomeIcons.instagram, "Instagram", "@${_profile!.username}", [2, 3, 2, 5, 4, 7], "45k", "+2.4%", Theme.of(context).colorScheme.secondary),
-                  _buildChannelCard(FontAwesomeIcons.youtube, "YouTube", "@${_profile!.username}.vlogs", [5, 4, 6, 5, 8, 7], "1.5M", "+5.1%", Theme.of(context).primaryColor)
-                ]),
-              ),
-            ),
+            _buildConnectedPlatforms(),
+            SliverToBoxAdapter(child: _buildBrandCollaborationsSection()),
             SliverToBoxAdapter(child: _buildSampleWorkSection()),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
@@ -145,88 +123,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     );
   }
 
-  Future<void> _handleSampleWorkUpload() async {
-    final XFile? media = await _sampleWorkPicker.pickMedia(
-      imageQuality: 80,
-    );
 
-    if (media == null) return;
-
-    final path = media.path.toLowerCase();
-    final isVideo = path.endsWith('.mp4') || path.endsWith('.mov') || path.endsWith('.mkv') || path.endsWith('.avi');
-
-    if (mounted) {
-      _showUploadMediaReviewModal(context, media, isVideo);
-    }
-  }
-
-  void _executeMediaUpload({
-    required XFile mediaFile,
-    required String title,
-    required String description,
-    required bool isCollaborative,
-    String? collabBrand,
-    String? externalUrl,
-  }) {
-    _profileRepo.uploadSampleWork(
-      mediaFile: mediaFile, 
-      title: title, 
-      description: description, 
-      isCollaborative: isCollaborative, 
-      collabBrand: collabBrand, 
-      externalUrl: externalUrl).listen(
-      (progress) {
-        setState(() {
-          _isSampleWorkUploading = true;
-          _sampleWorkUploadProgress = progress;
-        });
-
-        if (progress >= 1.0) {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            setState(() {
-              _isSampleWorkUploading = false;
-              _sampleWorkUploadProgress = 0;
-            });
-            _loadProfile();
-          });
-        }
-      },
-      onError: (e) {
-        setState(() {
-          _isSampleWorkUploading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Upload failed: $e")),
-        );
-      }
-    );
-  }
-
-  Widget _buildLocalMediaPreviewBox(XFile media, {required bool isVideo}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Selected Media", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Container(
-          height: 180,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E222A),
-            borderRadius: BorderRadius.circular(12),
-            image: !isVideo
-              ? DecorationImage(image: FileImage(File(media.path)), fit: BoxFit.cover)
-              : null,
-          ),
-          child: Center(
-            child: isVideo
-                ? const Icon(Icons.play_circle_fill, color: Colors.white, size: 48)
-                : null,
-          ),
-        ),
-      ],
-    );
-  }
 
   Future<void> _handleProfileImageUpload() async {
     final XFile? image = await _picker.pickImage(
@@ -299,7 +196,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
 
   Widget _buildAddMediaButton() {
     return GestureDetector(
-      onTap: _isSampleWorkUploading ? null : () => _showAddMediaOptions(context),      child: Container(
+      onTap: _isSampleWorkUploading ? null : () => _showUnifiedAddMediaForm(context),      child: Container(
         width: 140,
         margin: const EdgeInsets.only(right: 16, bottom: 8),
         decoration: BoxDecoration(
@@ -319,66 +216,24 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     );
   }
 
-  void _showAddMediaOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF12151C),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E222A),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.link, color: Theme.of(context).primaryColor, size: 20),
-                ),
-                title: const Text('Paste link (Instagram, YouTube)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showPasteLinkModal(context);
-                },
-              ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E222A),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.upload_file, color: Theme.of(context).primaryColor, size: 20),
-                ),
-                title: const Text('Upload media', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _handleSampleWorkUpload();
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showPasteLinkModal(BuildContext context) {
+  void _showUnifiedAddMediaForm(BuildContext context) {
     final TextEditingController linkController = TextEditingController();
     final TextEditingController titleController = TextEditingController();
     final TextEditingController descController = TextEditingController();
     final TextEditingController brandController = TextEditingController();
+    final TextEditingController viewsController = TextEditingController();
+    final TextEditingController likesController = TextEditingController();
+    final TextEditingController commentsController = TextEditingController();
     
     bool isParsing = false;
     bool isSubmitting = false;
     bool isCollab = false;
+    bool isUploadingThumbnail = false;
+    
     Map<String, dynamic>? parsedData;
+    String? thumbnailUrl;
+    String? thumbnailItemId;
+    XFile? localThumbnail;
 
     showModalBottomSheet(
       context: context,
@@ -390,93 +245,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            
-            if (parsedData == null) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
-                  left: 24,
-                  right: 24,
-                  top: 24,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Add Sample Work",
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: linkController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: "Paste Instagram or YouTube URL",
-                        hintStyle: const TextStyle(color: Color(0xFF6F7685)),
-                        filled: true,
-                        fillColor: const Color(0xFF1E222A),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: isParsing
-                            ? null
-                            : () async {
-                                final url = linkController.text.trim();
-                                if (url.isEmpty) return;
-
-                                setModalState(() => isParsing = true);
-                                
-                                final data = await _profileRepo.parseLink(url);
-                                
-                                if (data != null) {
-                                  setModalState(() {
-                                    parsedData = data;
-                                    titleController.text = data['title'] ?? '';
-                                    descController.text = data['description'] ?? '';
-                                    isParsing = false;
-                                  });
-                                } else {
-                                  setModalState(() => isParsing = false);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Failed to parse link.")),
-                                    );
-                                  }
-                                }
-                              },
-                        child: isParsing
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                              )
-                            : const Text("Fetch Details", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              );
-            }
-
-            final metrics = parsedData!['metrics'] ?? {};
-            final thumbUrl = parsedData!['temporary_thumbnail_url'] ?? (parsedData!['thumbnail_url']);
-            final mediaUrl = parsedData!['temporary_media_url'] ?? parsedData!['media_url'];
-
             return DraggableScrollableSheet(
               initialChildSize: 0.9,
               minChildSize: 0.5,
@@ -497,7 +265,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Review Details", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          const Text("Add to Portfolio", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                           IconButton(
                             icon: const Icon(Icons.close, color: Colors.white),
                             onPressed: () => Navigator.pop(context),
@@ -505,17 +273,117 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-
+                      
+                      const Text("External URL (Optional)", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          Expanded(child: _buildMediaPreviewBox("Thumbnail", thumbUrl, isVideo: false)),
+                          Expanded(
+                            child: TextField(
+                              controller: linkController,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: _getInputDecoration("e.g., YouTube or Instagram link"),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.secondary,
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: isParsing ? null : () async {
+                              final url = linkController.text.trim();
+                              if (url.isEmpty) return;
+                              setModalState(() => isParsing = true);
+                              final data = await _profileRepo.parseLink(url);
+                              if (data != null) {
+                                setModalState(() {
+                                  parsedData = data;
+                                  if (titleController.text.isEmpty) titleController.text = data['title'] ?? '';
+                                  if (descController.text.isEmpty) descController.text = data['description'] ?? '';
+                                  
+                                  if (data['metrics'] != null) {
+                                    final m = data['metrics'];
+                                    viewsController.text = m['views']?.toString() ?? '';
+                                    likesController.text = m['likes']?.toString() ?? '';
+                                    commentsController.text = m['comments']?.toString() ?? '';
+                                  }
+                                  
+                                  if (thumbnailUrl == null && localThumbnail == null) {
+                                    thumbnailUrl = data['temporary_thumbnail_url'] ?? data['thumbnail_url'];
+                                  }
+                                  isParsing = false;
+                                });
+                              } else {
+                                setModalState(() => isParsing = false);
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to parse link.")));
+                              }
+                            },
+                            child: isParsing 
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Text("Fetch", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      const Text("Thumbnail (Optional)", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            height: 100,
+                            width: 140,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E222A),
+                              borderRadius: BorderRadius.circular(12),
+                              image: localThumbnail != null 
+                                ? DecorationImage(image: FileImage(File(localThumbnail!.path)), fit: BoxFit.cover)
+                                : (thumbnailUrl != null 
+                                    ? DecorationImage(image: NetworkImage(thumbnailUrl!), fit: BoxFit.cover)
+                                    : null)
+                            ),
+                            child: (localThumbnail == null && thumbnailUrl == null)
+                                ? const Center(child: Icon(Icons.image, color: Color(0xFF6F7685), size: 36))
+                                : null,
+                          ),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildMediaPreviewBox("Video", mediaUrl, isVideo: true)),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: isUploadingThumbnail ? null : () async {
+                                final XFile? image = await _sampleWorkPicker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                                if (image != null) {
+                                  setModalState(() => isUploadingThumbnail = true);
+                                  final uploadedData = await _profileRepo.uploadThumbnail(image);
+                                  setModalState(() {
+                                    isUploadingThumbnail = false;
+                                    if (uploadedData != null) {
+                                      thumbnailItemId = uploadedData['id'];
+                                      thumbnailUrl = uploadedData['url'];
+                                      localThumbnail = image;
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to upload thumbnail")));
+                                    }
+                                  });
+                                }
+                              },
+                              icon: isUploadingThumbnail 
+                                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : Icon(Icons.upload, color: Theme.of(context).primaryColor, size: 20),
+                              label: const Text("Upload Custom", style: TextStyle(color: Colors.white)),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Theme.of(context).primaryColor),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            )
+                          )
                         ],
                       ),
                       const SizedBox(height: 24),
 
-                      const Text("Title", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const Text("Title *", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: titleController,
@@ -533,20 +401,45 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                         decoration: _getInputDecoration("Description"),
                       ),
                       const SizedBox(height: 24),
-
-                      if (metrics.isNotEmpty) ...[
-                        const Text("Performance Metrics", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildMetricItem(Icons.visibility, metrics['views']?.toString() ?? '0'),
-                            _buildMetricItem(Icons.favorite, metrics['likes']?.toString() ?? '0'),
-                            _buildMetricItem(Icons.comment, metrics['comments']?.toString() ?? '0'),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
+                      
+                      const Text("Metrics", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: viewsController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: _getInputDecoration("Views").copyWith(prefixIcon: const Icon(Icons.visibility, color: Color(0xFF6F7685), size: 18)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: likesController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: _getInputDecoration("Likes").copyWith(prefixIcon: const Icon(Icons.favorite, color: Color(0xFF6F7685), size: 18)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: commentsController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: _getInputDecoration("Comments").copyWith(prefixIcon: const Icon(Icons.comment, color: Color(0xFF6F7685), size: 18)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Leave metrics blank to attempt fetching from the platform. Note: some platforms like Instagram do not support this.",
+                        style: TextStyle(color: Color(0xFF6F7685), fontSize: 11, fontStyle: FontStyle.italic),
+                      ),
+                      const SizedBox(height: 24),
 
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -575,61 +468,63 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          onPressed: isSubmitting 
-                            ? null 
-                            : () async {
-                                setModalState(() => isSubmitting = true);
+                          onPressed: isSubmitting ? null : () async {
+                            if (titleController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Title is required.")));
+                              return;
+                            }
+                            setModalState(() => isSubmitting = true);
+                            try {
+                              final extUrl = linkController.text.trim();
+                              final sourceType = (extUrl.contains('youtube') || extUrl.contains('youtu.be')) 
+                                  ? 'youtube' 
+                                  : (extUrl.contains('instagram') ? 'instagram' : 'manual');
 
-                                try {
-                                  final externalUrl = parsedData!['external_url']?.toString() ?? '';
-                                  final sourceType = externalUrl.contains('youtube') || externalUrl.contains('youtu.be') 
-                                      ? 'youtube' 
-                                      : 'instagram';
+                              String finalDesc = descController.text.trim();
+                              if (isCollab && brandController.text.isNotEmpty) {
+                                finalDesc += "\n\nCollaboration with: ${brandController.text.trim()}";
+                              }
 
-                                
-                                  String finalDesc = descController.text.trim();
-                                  if (isCollab && brandController.text.isNotEmpty) {
-                                    finalDesc += "\n\nCollaboration with: ${brandController.text.trim()}";
-                                  }
+                              Map<String, dynamic>? metricsPayload;
+                              if (viewsController.text.isNotEmpty || likesController.text.isNotEmpty || commentsController.text.isNotEmpty) {
+                                metricsPayload = {
+                                  'views': int.tryParse(viewsController.text) ?? 0,
+                                  'likes': int.tryParse(likesController.text) ?? 0,
+                                  'comments': int.tryParse(commentsController.text) ?? 0,
+                                };
+                              }
 
-                                  final request = CreatePortfolioItemRequest(
-                                    title: titleController.text.trim(),
-                                    description: finalDesc,
-                                    externalUrl: externalUrl,
-                                    sourceType: sourceType,
-                                    isCollaborative: isCollab,
-                                    metrics: parsedData!['metrics'],
-                                    thumbnailUrl: sourceType == 'youtube' ? parsedData!['thumbnail_url'] : null,
-                                    mediaUrl: sourceType == 'youtube' ? parsedData!['media_url'] : null,
-                                    temporaryThumbnailUrl: sourceType == 'instagram' ? parsedData!['temporary_thumbnail_url'] : null,
-                                    temporaryMediaUrl: sourceType == 'instagram' ? parsedData!['temporary_media_url'] : null,
-                                  );
+                              final request = CreatePortfolioItemRequest(
+                                title: titleController.text.trim(),
+                                description: finalDesc.isEmpty ? null : finalDesc,
+                                externalUrl: extUrl.isEmpty ? null : extUrl,
+                                sourceType: sourceType,
+                                isCollaborative: isCollab,
+                                metrics: metricsPayload,
+                                thumbnailUrl: thumbnailUrl,
+                                thumbnailItemId: thumbnailItemId,
+                              );
 
-                                  final newItem = await _profileRepo.createPortfolioItem(request);
-
-                                  if (context.mounted && newItem != null) {
-                                    Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Successfully added to portfolio!")),
-                                    );
-                                    
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-                                    );
-                                  }
-                                } finally {
-                                  setModalState(() => isSubmitting = false);
-                                }
-                              },
+                              final newItem = await _profileRepo.createPortfolioItem(request);
+                              if (context.mounted && newItem != null) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Successfully added to portfolio!")),
+                                );
+                                _loadProfile();
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+                                );
+                              }
+                            } finally {
+                              setModalState(() => isSubmitting = false);
+                            }
+                          },
                           child: isSubmitting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                )
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                               : const Text("Confirm & Add to Portfolio", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                       ),
@@ -638,144 +533,9 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                 );
               },
             );
-          },
+          }
         );
-      },
-    );
-  }
-
-  void _showUploadMediaReviewModal(BuildContext context, XFile media, bool isVideo) {
-    final TextEditingController titleController = TextEditingController();
-    final TextEditingController descController = TextEditingController();
-    final TextEditingController brandController = TextEditingController();
-    final TextEditingController externalUrlController = TextEditingController();
-    
-    bool isCollab = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true, 
-      backgroundColor: const Color(0xFF12151C),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return DraggableScrollableSheet(
-              initialChildSize: 0.9, 
-              minChildSize: 0.5,
-              maxChildSize: 0.95,
-              expand: false,
-              builder: (_, scrollController) {
-                return SingleChildScrollView(
-                  controller: scrollController,
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                    left: 24,
-                    right: 24,
-                    top: 24,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("Review Upload", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                          IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            onPressed: () => Navigator.pop(context),
-                          )
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildLocalMediaPreviewBox(media, isVideo: isVideo),
-                      const SizedBox(height: 24),
-
-                      const Text("Title *", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: titleController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: _getInputDecoration("Title"),
-                      ),
-                      const SizedBox(height: 16),
-
-                      const Text("Description *", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: descController,
-                        maxLines: 4,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: _getInputDecoration("Description"),
-                      ),
-                      const SizedBox(height: 24),
-
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text("Was this a collaboration?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                        activeColor: Theme.of(context).primaryColor,
-                        value: isCollab,
-                        onChanged: (val) {
-                          setModalState(() => isCollab = val);
-                        },
-                      ),
-                      if (isCollab) ...[
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: brandController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: _getInputDecoration("Brand Name (e.g., Nike)"),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      const Text("External URL (Optional)", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: externalUrlController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: _getInputDecoration("e.g., Link to live post"),
-                      ),
-                      const SizedBox(height: 32),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.secondary,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            print("Direct Upload confirmed.");
-                            print("Title: ${titleController.text}");
-                            print("Desc: ${descController.text}");
-                            print("URL: ${externalUrlController.text}");
-                            
-                            Navigator.pop(context);
-                            _executeMediaUpload(
-                              mediaFile: media,
-                              title: titleController.text,
-                              description: descController.text,
-                              isCollaborative: isCollab,
-                              collabBrand: brandController.text,
-                              externalUrl: externalUrlController.text,
-                            );
-                          },
-                          child: const Text("Confirm & Upload", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
+      }
     );
   }
 
@@ -1125,10 +885,8 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
           ),
           backgroundColor: Colors.transparent
         ),
-        onPressed: () {
-          print("Connect accounts button");
-        },
-        icon: Icon(Icons.link, color: Theme.of(context).primaryColor, size: 20,),
+        onPressed: _showConnectPlatformModal,
+        icon: Icon(Icons.link, color: Theme.of(context).primaryColor, size: 20),
         label: const Text(
           "Connect Accounts",
           style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)
@@ -1137,95 +895,463 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(String value, String label) {
-    return Container(
-      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),),
-          Text(label, style: const TextStyle(color: Color(0xFF6F7685), fontSize: 12))
-        ],
+  void _showAddBrandModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _AddBrandModal(),
+    ).then((_) {
+      _loadProfile();
+    });
+  }
+
+  Widget _buildBrandCollaborationsSection() {
+    final brands = _profile?.brandCollaborations ?? [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'BRANDS WORKED WITH',
+                style: TextStyle(color: Color(0xFF6F7685), fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add, color: Colors.white),
+                onPressed: _showAddBrandModal,
+              )
+            ],
+          ),
+        ),
+        if (brands.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Text('No brands added yet.', style: TextStyle(color: Colors.white54)),
+          )
+        else
+          SizedBox(
+            height: 180,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: brands.length,
+              itemBuilder: (context, index) {
+                final brand = brands[index];
+                return Container(
+                  width: 250,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (brand.logoUrl != null && brand.logoUrl!.isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                brand.logoUrl!,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c,e,s) => const Icon(Icons.business, color: Colors.white),
+                              ),
+                            )
+                          else
+                            const Icon(Icons.business, color: Colors.white, size: 40),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              brand.companyName,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (brand.description != null && brand.description!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            brand.description!,
+                            style: const TextStyle(color: Colors.white70, fontSize: 13),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildConnectedPlatforms() {
+    if (_profile == null || _profile!.creatorPlatforms.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            if (index == 0) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text("CONNECTED PLATFORMS", style: TextStyle(color: Color(0xFF6F7685), letterSpacing: 1.2, fontWeight: FontWeight.bold)),
+              );
+            }
+            final platform = _profile!.creatorPlatforms[index - 1];
+            return _buildPlatformCard(platform);
+          },
+          childCount: _profile!.creatorPlatforms.length + 1,
+        ),
       ),
     );
   }
 
-  Widget _buildChannelCard(
-    IconData icon, 
-    String title,
-    String handle,
-    List<double> data,
-    String count, 
-    String trend, 
-    Color trendColor
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16)
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: FaIcon(icon, color: trendColor, size: 20),
-          ),
-          const SizedBox(width: 16,),
+  Widget _buildPlatformCard(CreatorPlatformModel platform) {
+    FaIconData icon;
+    Color iconColor;
+    
+    final nameLower = platform.name.toLowerCase();
+    if (nameLower.contains('instagram') || nameLower.contains('ig')) {
+      icon = FontAwesomeIcons.instagram;
+      iconColor = Theme.of(context).colorScheme.secondary;
+    } else if (nameLower.contains('youtube') || nameLower.contains('yt')) {
+      icon = FontAwesomeIcons.youtube;
+      iconColor = Theme.of(context).primaryColor;
+    } else if (nameLower.contains('tiktok')) {
+      icon = FontAwesomeIcons.tiktok;
+      iconColor = Colors.white;
+    } else {
+      icon = FontAwesomeIcons.link;
+      iconColor = Colors.grey;
+    }
 
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title, 
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  handle, 
-                  style: TextStyle(color: Color(0xFF6F7685), fontSize: 12)
-                ),
-              ],
-            ),
-          ),
-
-          SizedBox(
-            width: 60,
-            height: 30,
-            child: Sparkline(
-              data: data,
-              lineColor: trendColor,
-              lineWidth: 2,
-              fillMode: FillMode.none,
-            ),
-          ), 
-
-          const SizedBox(width: 16,),
-
-          Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+    return GestureDetector(
+      onTap: () {
+        if (platform.insights.isNotEmpty) {
+          _showExpandedMedia(platform.insights.first, 'image');
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16)
+        ),
+        child: Row(
           children: [
-            Text(
-              count, 
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: FaIcon(icon, color: iconColor, size: 20),
             ),
-            Text(
-              trend, 
-              style: TextStyle(
-                color: trendColor.withValues(alpha: 0.8), 
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            const SizedBox(width: 16,),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    platform.name, 
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "@${platform.username}", 
+                    style: const TextStyle(color: Color(0xFF6F7685), fontSize: 12)
+                  ),
+                ],
               ),
             ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (platform.followers != null)
+                  Text(
+                    _formatNumber(platform.followers!), 
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                if (platform.engagementRate != null)
+                  Text(
+                    "${platform.engagementRate}% ER", 
+                    style: TextStyle(color: iconColor, fontSize: 12, fontWeight: FontWeight.bold)
+                  ),
+              ],
+            )
           ],
         ),
-        ],
-      )
+      ),
+    );
+  }
+
+  void _showConnectPlatformModal() {
+    final nameController = TextEditingController();
+    final usernameController = TextEditingController();
+    final erController = TextEditingController();
+    final followersController = TextEditingController();
+    final viewsController = TextEditingController();
+    List<XFile> selectedInsights = [];
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF12151C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.9,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (_, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                    left: 24,
+                    right: 24,
+                    top: 24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Connect Platform", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      const Text("Platform Name", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: nameController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _getInputDecoration("e.g. Instagram, YouTube, TikTok"),
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text("Username", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: usernameController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _getInputDecoration("e.g. @username"),
+                      ),
+                      const SizedBox(height: 16),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Followers", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: followersController,
+                                  keyboardType: TextInputType.number,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: _getInputDecoration("e.g. 15000"),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Avg Views", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: viewsController,
+                                  keyboardType: TextInputType.number,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: _getInputDecoration("e.g. 5000"),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text("Engagement Rate (%)", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: erController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _getInputDecoration("e.g. 5.5"),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "Tip: Calculate your engagement rate by taking the average (likes + comments) of your last 7-10 posts, divided by your total followers, then multiplied by 100.",
+                        style: TextStyle(color: Color(0xFF6F7685), fontSize: 10, fontStyle: FontStyle.italic),
+                      ),
+                      const SizedBox(height: 24),
+
+                      const Text("Upload Insights (Screenshots)", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () async {
+                          final List<XFile> images = await _sampleWorkPicker.pickMultiImage(imageQuality: 80);
+                          if (images.isNotEmpty) {
+                            setModalState(() {
+                              selectedInsights.addAll(images);
+                            });
+                          }
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            border: Border.all(color: Theme.of(context).colorScheme.surface),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: selectedInsights.isEmpty 
+                            ? const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_photo_alternate, color: Color(0xFF6F7685), size: 32),
+                                    SizedBox(height: 8),
+                                    Text("Tap to select multiple screenshots", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12)),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.all(8),
+                                itemCount: selectedInsights.length,
+                                itemBuilder: (context, index) {
+                                  return Stack(
+                                    children: [
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 8),
+                                        width: 80,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(8),
+                                          image: DecorationImage(
+                                            image: FileImage(File(selectedInsights[index].path)),
+                                            fit: BoxFit.cover,
+                                          )
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 4,
+                                        right: 12,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setModalState(() {
+                                              selectedInsights.removeAt(index);
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                            child: const Icon(Icons.close, size: 16, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: isSubmitting ? null : () async {
+                            final name = nameController.text.trim();
+                            final username = usernameController.text.trim();
+                            if (name.isEmpty || username.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name and Username are required")));
+                              return;
+                            }
+
+                            setModalState(() => isSubmitting = true);
+                            
+                            List<String> insightIds = [];
+                            for (var image in selectedInsights) {
+                              final id = await _profileRepo.uploadInsight(image);
+                              if (id != null) {
+                                insightIds.add(id);
+                              }
+                            }
+
+                            final request = CreatePlatformRequest(
+                              name: name,
+                              username: username,
+                              engagementRate: double.tryParse(erController.text.trim()),
+                              followers: int.tryParse(followersController.text.trim()),
+                              views: int.tryParse(viewsController.text.trim()),
+                              insightItemIds: insightIds,
+                            );
+
+                            final newPlatform = await _profileRepo.createCreatorPlatform(request);
+                            if (newPlatform != null) {
+                              Navigator.pop(context);
+                              _loadProfile(); 
+                            } else {
+                              setModalState(() => isSubmitting = false);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to connect platform")));
+                              }
+                            }
+                          },
+                          child: isSubmitting 
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text("Save Platform", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      )
+                    ],
+                  ),
+                );
+              },
+            );
+          }
+        );
+      }
     );
   }
 
@@ -1234,5 +1360,234 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     if (number >= 1000000) return '${(number / 1000000).toStringAsFixed(1)}M';
     if (number >= 1000) return '${(number / 1000).toStringAsFixed(1)}K';
     return number.toString();
+  }
+}
+
+class _AddBrandModal extends StatefulWidget {
+  const _AddBrandModal();
+
+  @override
+  State<_AddBrandModal> createState() => _AddBrandModalState();
+}
+
+class _AddBrandModalState extends State<_AddBrandModal> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _urlCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _postUrlCtrl = TextEditingController();
+
+  String? _logoUrl;
+  bool _isLoading = false;
+  bool _isSearchingLogo = false;
+  String? _logoError;
+
+  InputDecoration _getInputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF6F7685)),
+      filled: true,
+      fillColor: const Color(0xFF1E222A),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
+  void _searchLogo() {
+    String url = _urlCtrl.text.trim();
+    if (url.isEmpty) return;
+
+    url = url.replaceAll(RegExp(r'^https?://'), '').split('/').first;
+
+    setState(() {
+      _isSearchingLogo = true;
+      _logoError = null;
+      _logoUrl = null;
+    });
+
+    final testUrl = 'https://logos.hunter.io/$url';
+
+    final image = NetworkImage(testUrl);
+    final stream = image.resolve(const ImageConfiguration());
+    stream.addListener(ImageStreamListener(
+      (info, synchronousCall) {
+        if (mounted) {
+          setState(() {
+            _logoUrl = testUrl;
+            _isSearchingLogo = false;
+          });
+        }
+      },
+      onError: (exception, stackTrace) {
+        if (mounted) {
+          setState(() {
+            _logoError = "Logo not found. We'll just show the brand name.";
+            _isSearchingLogo = false;
+          });
+        }
+      },
+    ));
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final repo = ProfileRepository();
+      final res = await repo.addBrandCollaboration(
+        companyName: _nameCtrl.text.trim(),
+        companyUrl: _urlCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        postUrl: _postUrlCtrl.text.trim(),
+        logoUrl: _logoUrl,
+      );
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (res != null) {
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to add brand.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1C1F26),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        top: 24,
+        left: 24,
+        right: 24,
+        bottom: mq.viewInsets.bottom + 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Add Brand Collaboration", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text("Company Name", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _nameCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: _getInputDecoration("e.g. Nike, Adidas, Apple"),
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              const Text("Company URL", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _urlCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _getInputDecoration("e.g. nike.com"),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _isSearchingLogo ? null : _searchLogo,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      child: _isSearchingLogo
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.search, color: Colors.white),
+                    ),
+                  )
+                ],
+              ),
+              if (_logoUrl != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Row(
+                    children: [
+                      const Text('Logo Preview: ', style: TextStyle(color: Colors.white54)),
+                      const SizedBox(width: 8),
+                      Image.network(_logoUrl!, width: 40, height: 40, fit: BoxFit.cover),
+                    ],
+                  ),
+                ),
+              if (_logoError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(_logoError!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                ),
+              const SizedBox(height: 16),
+              const Text("Description", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _descCtrl,
+                style: const TextStyle(color: Colors.white),
+                maxLines: 3,
+                decoration: _getInputDecoration("What did you do?"),
+              ),
+              const SizedBox(height: 16),
+              const Text("Post/Video URL (Optional)", style: TextStyle(color: Color(0xFF6F7685), fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _postUrlCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: _getInputDecoration("e.g. https://instagram.com/p/..."),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Save Brand', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

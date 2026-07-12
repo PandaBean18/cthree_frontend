@@ -20,7 +20,14 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401 && err.response?.realUri.toString() == 'http://127.0.0.1:3000/auth/refresh') {
+    final path = err.requestOptions.path;
+
+    // Do not attempt to refresh tokens on auth endpoints
+    if (path.contains('/auth/login') || path.contains('/auth/signup')) {
+      return handler.next(err);
+    }
+
+    if (err.response?.statusCode == 401 && path.contains('/auth/refresh')) {
       await AuthStorage.deleteAll();
       return handler.next(err); 
     }

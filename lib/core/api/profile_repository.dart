@@ -5,7 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 import 'package:mime/mime.dart';
 import 'package:cthree/data/dto/create_portfolio_item_request.dart';
+import 'package:cthree/data/dto/create_platform_request.dart';
 import 'package:cthree/core/models/portfolio_item_model.dart';
+import 'package:cthree/core/models/creator_platform_model.dart';
+import 'package:cthree/core/models/brand_collaboration_model.dart';
 
 class ProfileRepository {
   final Dio _dio = DioClient().dio;
@@ -196,6 +199,52 @@ class ProfileRepository {
     return controller.stream;
   }
 
+  Future<Map<String, dynamic>?> uploadThumbnail(XFile imageFile) async {
+    try {
+      final sigResponse = await _dio.get('/media/signature');
+      final sigData = sigResponse.data;
+      
+      final formData = FormData.fromMap({
+        "file": await MultipartFile.fromFile(imageFile.path),
+        "api_key": sigData['api_key'],
+        "timestamp": sigData['timestamp'],
+        "signature": sigData['signature'],
+        "folder": sigData['folder'],
+        "tags": sigData['tags'],
+        "source": "uw",
+      });
+
+      final cloudinaryResponse = await _cloudinaryDio.post(
+        "https://api.cloudinary.com/v1_1/${sigData['cloud_name']}/image/upload",
+        data: formData,
+      );
+
+      if (cloudinaryResponse.statusCode == 200) {
+        final cData = cloudinaryResponse.data;
+        
+        final confirmResponse = await _dio.post('/media/confirm_upload', data: {
+          "public_id": cData['public_id'],
+          "resource_type": "image",
+          "label": 'portfolio_thumbnail',
+          "metadata": {
+            "width": cData['width'],
+            "height": cData['height'],
+            "format": cData['format'],
+          }
+        });
+
+        return {
+          'id': confirmResponse.data['item']['id'],
+          'url': cData['secure_url'],
+        };
+      }
+      return null;
+    } catch (e) {
+      print("Error uploading thumbnail: $e");
+      return null;
+    }
+  }
+
   Future<PortfolioItem?> createPortfolioItem(CreatePortfolioItemRequest request) async {
     try {
       final response = await _dio.post(
@@ -221,6 +270,103 @@ class ProfileRepository {
     } catch (e) {
       print("Error in createPortfolioItem: $e");
       rethrow;
+    }
+  }
+
+  Future<CreatorPlatformModel?> createCreatorPlatform(CreatePlatformRequest request) async {
+    try {
+      final response = await _dio.post(
+        '/creator_platforms',
+        data: request.toJson(),
+      );
+      if (response.statusCode == 201) {
+        return CreatorPlatformModel.fromJson(response.data);
+      }
+      return null;
+    } catch (e) {
+      print("Error creating platform: $e");
+      return null;
+    }
+  }
+
+  Future<String?> uploadInsight(XFile imageFile) async {
+    try {
+      final sigResponse = await _dio.get('/media/signature');
+      final sigData = sigResponse.data;
+      
+      final formData = FormData.fromMap({
+        "file": await MultipartFile.fromFile(imageFile.path),
+        "api_key": sigData['api_key'],
+        "timestamp": sigData['timestamp'],
+        "signature": sigData['signature'],
+        "folder": sigData['folder'],
+        "tags": sigData['tags'],
+        "source": "uw",
+      });
+
+      final cloudinaryResponse = await _cloudinaryDio.post(
+        "https://api.cloudinary.com/v1_1/${sigData['cloud_name']}/image/upload",
+        data: formData,
+      );
+
+      if (cloudinaryResponse.statusCode == 200) {
+        final cData = cloudinaryResponse.data;
+        
+        final confirmResponse = await _dio.post('/media/confirm_upload', data: {
+          "public_id": cData['public_id'],
+          "resource_type": "image",
+          "label": 'platform_insight',
+          "metadata": {
+            "width": cData['width'],
+            "height": cData['height'],
+            "format": cData['format'],
+          }
+        });
+
+        return confirmResponse.data['item']['id'];
+      }
+      return null;
+    } catch (e) {
+      print("Error uploading insight: $e");
+      return null;
+    }
+  }
+
+  Future<BrandCollaborationModel?> addBrandCollaboration({
+    required String companyName,
+    String? companyUrl,
+    String? logoUrl,
+    String? description,
+    String? postUrl,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/users/me/brand_collaborations',
+        data: {
+          'company_name': companyName,
+          'company_url': companyUrl,
+          'logo_url': logoUrl,
+          'description': description,
+          'post_url': postUrl,
+        },
+      );
+      if (response.statusCode == 201) {
+        return BrandCollaborationModel.fromJson(response.data['brand_collaboration']);
+      }
+      return null;
+    } catch (e) {
+      print("Error adding brand collaboration: $e");
+      return null;
+    }
+  }
+
+  Future<bool> deleteBrandCollaboration(String id) async {
+    try {
+      final response = await _dio.delete('/users/me/brand_collaborations/$id');
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error deleting brand collaboration: $e");
+      return false;
     }
   }
 }

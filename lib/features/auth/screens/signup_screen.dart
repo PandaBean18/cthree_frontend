@@ -3,18 +3,19 @@ import 'package:cthree/features/shared/widgets/app_button.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:cthree/core/api/auth_provider.dart';
-import 'package:cthree/features/auth/screens/signup_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _descriptionController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -22,6 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _usernameController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -32,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: CustomScrollView( // Better for smoothness than SingleChildScrollView
+          child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverFillRemaining(
@@ -46,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         const Text(
-                            "WELCOME",
+                            "CREATE",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 32,
@@ -55,64 +58,67 @@ class _LoginScreenState extends State<LoginScreen> {
                         ), 
                         SizedBox(width: 8,),
                         Text(
-                          "BACK",
+                          "ACCOUNT",
                           style: TextStyle(
                               color: Theme.of(context).colorScheme.secondary,
                               fontSize: 32,
                               fontWeight: FontWeight.bold,
                               fontStyle: FontStyle.italic
                             ),
-
                         )
                       ],
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      "You've been missed!",
+                      "Join the platform today!",
                       style: TextStyle(color: Color(0xFF6F7685), fontSize: 16),
                     ),
                     const SizedBox(height: 24),
 
                     // Input Fields
+                    _buildInputLabel("Username"),
+                    _buildTextField(_usernameController, "Enter your username", Icons.person_outline),
+
+                    const SizedBox(height: 16),
+
                     _buildInputLabel("Email Address"),
                     _buildTextField(_emailController, "Enter your email", Icons.alternate_email),
+
+                    const SizedBox(height: 16),
+
+                    _buildInputLabel("Description / Bio"),
+                    _buildTextField(_descriptionController, "Tell us about yourself", Icons.info_outline),
                     
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     
                     _buildInputLabel("Password"),
                     _buildTextField(_passwordController, "••••••••", Icons.lock_outline, isPassword: true),
                     
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {},
-                        child: const Text("Forgot Password?", style: TextStyle(color: Color(0xFF45A2FF))),
-                      ),
-                    ),
-
                     const SizedBox(height: 32),
 
-                    // Primary Login Action
+                    // Primary Signup Action
                     AppButton(
-                      text: "Log In",
+                      text: "Sign Up",
                       isLoading: _isLoading,
                       onPressed: () async {
-                        if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+                        if (_emailController.text.isEmpty || _passwordController.text.isEmpty || _usernameController.text.isEmpty || _descriptionController.text.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Please enter both email and password")),
+                            const SnackBar(content: Text("Please fill all fields")),
                           );
                           return;
                         }
-                        final messenger = ScaffoldMessenger.of(context);
                         
+                        final messenger = ScaffoldMessenger.of(context);
+
                         setState(() {
                           _isLoading = true;
                         });
 
-                        final success = await context.read<AuthProvider>().login(
+                        final success = await context.read<AuthProvider>().signup(
                           _emailController.text.trim(),
                           _passwordController.text,
+                          _usernameController.text.trim(),
+                          _descriptionController.text.trim()
                         );
 
                         if (mounted) {
@@ -124,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (!success) {
                           messenger.showSnackBar(
                             const SnackBar(
-                              content: Text("Login failed. Please check your credentials."),
+                              content: Text("Sign up failed. Please try again."),
                               backgroundColor: Colors.redAccent,
                             ),
                           );
@@ -152,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppButton(
                       variant: ButtonVariant.outline,
                       text: "Continue with Google",
-                      icon: const FaIcon(FontAwesomeIcons.google, size: 20, color: Colors.white), // Replace with asset later
+                      icon: const FaIcon(FontAwesomeIcons.google, size: 20, color: Colors.white),
                       onPressed: () {},
                     ),
                     const SizedBox(height: 12),
@@ -168,15 +174,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text("Don't have an account? ", style: TextStyle(color: Color(0xFF6F7685))),
+                        const Text("Already have an account? ", style: TextStyle(color: Color(0xFF6F7685))),
                         TextButton(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const SignupScreen()),
-                            );
+                            Navigator.pop(context);
                           },
-                          child: const Text("Sign Up", style: TextStyle(color: Color(0xFFE157A4))),
+                          child: const Text("Log In", style: TextStyle(color: Color(0xFFE157A4))),
                         ),
                       ],
                     ),
